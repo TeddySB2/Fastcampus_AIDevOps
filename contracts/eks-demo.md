@@ -11,7 +11,7 @@ OpenTelemetry Demo 를 dev EKS 에 배포하고, 상품 조회와 장바구니 �
 
 | 항목 | 값 |
 | --- | --- |
-| AWS 계정 | (전용 학습 계정 ID) |
+| AWS 계정 | (dev 전용 계정 ID — 공개 저장소에는 적지 않는다) |
 | 리전 | ap-northeast-2 |
 | 클러스터 | ai-devops-lab-dev |
 | 네임스페이스 | otel-demo-dev (prod 는 otel-demo-prod, 수동 동기화) |

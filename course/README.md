@@ -23,7 +23,7 @@ Claude 가 강의 맥락에 끌려가지 않도록 `.claude/settings.json` 에�
 | 클립 | 태그 | 상태 |
 | --- | --- | --- |
 | 1-1 | `p3-ch1-start` | 요구사항 메모(docs/requirements), 계약서 템플릿, CLAUDE.md 최소본, .claude 설정, app/product-catalog. infra · gitops 없음. 답변 가이드: `course/1-1.md` |
-| 1-2 · 2-1 | `p3-ch1-end` | 1-1 끝: 기준 계약서 (1-1 을 직접 했다면 내 브랜치 그대로 이어간다) |
+| 1-2 · 2-1 | `p3-ch1-end` | 1-1 끝: 기준 계약서. 내 계약서로 계속할지 기준으로 맞출지는 `course/1-2.md` |
 | 2-2 | `p3-ch2-start` | infra/cluster 에 versions · backend · providers · github-oidc 만 |
 | 2-2 끝 | `p3-ch2-end` | infra 기준 코드 |
 | 그 외 | `main` (p3-end) | Part 3 완료 상태 |

@@ -21,7 +21,7 @@
 - VPC · EKS · ECR (Terraform), Argo CD 와 root 앱
 - Demo 전체 서비스. 관측 스택(Grafana · Jaeger 등)과 load-generator 포함
 - metrics-server 와 HPA
-- product-catalog 한 서비스만 직접 빌드 → ECR → digest 로 배포, 이후 CI 로 자동화
+- product-catalog 한 서비스만 직접 빌드 → ECR(태그 변경 불가, IMMUTABLE) → digest 로 배포, 이후 CI 로 자동화
 - prod 승격: 같은 클러스터의 `otel-demo-prod` 로, 사람이 Sync
 
 제외

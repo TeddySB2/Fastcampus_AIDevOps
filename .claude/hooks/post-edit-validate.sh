@@ -18,10 +18,19 @@ case "$file" in
     fi
     ;;
   *.yaml|*.yml)
-    out=$(python3 -c '
+    # YAML 파서: PyYAML → ruby(Psych) → yq 순서로 있는 것을 쓴다 (도구가 하나도 없으면 건너뜀)
+    if python3 -c 'import yaml' 2>/dev/null; then
+      out=$(python3 -c '
 import sys,yaml
 try: list(yaml.safe_load_all(open(sys.argv[1])))
 except Exception as e: print(e); sys.exit(1)' "$file" 2>&1) || errors+="YAML 파싱 실패 ($file):\n$out\n"
+    elif command -v ruby >/dev/null; then
+      out=$(ruby -e 'require "yaml"; begin; YAML.load_stream(File.read(ARGV[0])); rescue => e; puts e.message; exit 1; end' "$file" 2>&1) || errors+="YAML 파싱 실패 ($file):\n$out\n"
+    elif command -v yq >/dev/null; then
+      out=$(yq eval '.' "$file" 2>&1 >/dev/null) || errors+="YAML 파싱 실패 ($file):\n$out\n"
+    else
+      echo "참고: YAML 검사 도구(PyYAML · ruby · yq)가 없어 검사를 건너뜁니다." >&2
+    fi
     if [[ -z "$errors" && "$file" == *gitops/manifests/* ]] && command -v kubeconform >/dev/null; then
       out=$(kubeconform -summary -ignore-missing-schemas "$file" 2>&1) || errors+="kubeconform 실패 ($file):\n$out\n"
     fi

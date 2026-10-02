@@ -1,0 +1,11 @@
+# 정책 예외는 이 파일에 "근거와 함께" 남긴다. 예외 없이 끄는 것은 금지.
+framework:
+  - terraform
+compact: true
+skip-check:
+  # 레지스트리 모듈은 버전(~>)으로 고정하고, 업그레이드는 PR 로 검토한다 (학습 환경 결정)
+  - CKV_TF_1
+  # 학습 환경 ECR 은 AES256 기본 암호화로 충분하다고 판단 (운영은 KMS CMK 권장)
+  - CKV_AWS_136
+  # AZ 목록은 slice(…, 0, 3) 으로 개수를 고정해 사용한다
+  - CKV_AWS_394

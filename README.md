@@ -3,7 +3,14 @@
 쇼핑몰 서비스의 dev 환경을 AWS EKS 에 GitOps 로 구축·운영하는 플랫폼팀 저장소.
 쇼핑몰 서비스로는 OpenTelemetry Demo(Astronomy Shop)를 쓴다. Claude Code 와 함께 작업하되, 판정은 도구가 하고 승인은 사람이 한다.
 
-> 강의 수강생은 [course/README.md](course/README.md) 에서 클립별 시작 태그와 진행 순서를 확인한다.
+> **강의 수강생:** `main` 은 Part 3 완성본이다. 클론한 뒤 클립의 시작 태그에서 작업 브랜치를 만들어 시작한다.
+>
+> ```bash
+> git clone https://github.com/TeddySB2/Fastcampus_AIDevOps.git && cd Fastcampus_AIDevOps
+> git switch -c ch1 p3-ch1-start
+> ```
+>
+> 클립별 태그와 진행 순서는 [course/README.md](course/README.md) 에 있다.
 
 ## 구성
 
@@ -11,7 +18,7 @@
 CLAUDE.md                 저장소 규칙 (사람과 Claude 공통)
 .claude/                  권한(allow/ask/deny), Hook, Skill
 .mcp.json                 EKS · Argo CD MCP (읽기 전용)
-contracts/eks-demo.md     작업 계약서 (1-1)
+specs/eks-demo.md     작업 스펙 (현재 작업)
 infra/cluster             VPC · EKS · ECR · GitHub OIDC (Terraform)
 infra/platform            Argo CD + root Application (Terraform)
 gitops/apps               Argo CD Application (dev 자동 / prod 수동)
@@ -40,10 +47,11 @@ course/                   강의 진행용 자료 (Claude 는 읽지 않도록 d
 
 | 도구 | 용도 |
 | --- | --- |
-| Terraform ≥ 1.10, tflint, checkov | infra |
+| Terraform ≥ 1.10 (brew: hashicorp/tap/terraform), checkov | infra |
 | AWS CLI v2, kubectl, helm, kubeconform, yq v4 | 클러스터·렌더링 |
 | argocd CLI, gh CLI | GitOps·PR |
 | Claude Code, uv(uvx), Node.js(npx) | 에이전트·MCP |
+| Go ≥ 1.25, Podman, Trivy | product-catalog 빌드·테스트·이미지 스캔 (설치: `course/setup-tools.md`) |
 
 버전은 고정하고, 올릴 때는 단독 PR 로 한다.
 
@@ -59,7 +67,7 @@ cp backend.hcl.example backend.hcl && cp dev.tfvars.example dev.tfvars   # 값 �
 terraform init -backend-config=backend.hcl
 terraform plan -var-file=dev.tfvars -out=tfplan
 terraform apply tfplan
-aws eks update-kubeconfig --region ap-northeast-2 --name "$(terraform output -raw cluster_name)"
+aws eks update-kubeconfig --region ap-northeast-2 --name "$(terraform output -raw cluster_name)" --alias "$(terraform output -raw cluster_name)"   # context 이름 = 클러스터 이름
 
 # 2. GitHub 저장소 변수 등록 (Settings → Secrets and variables → Actions → Variables)
 #    AWS_REGION, AWS_CI_ROLE_ARN(=github_ci_role_arn), ECR_REPOSITORY_URL(=ecr_repository_url)

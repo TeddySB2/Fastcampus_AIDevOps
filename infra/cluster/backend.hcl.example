@@ -1,0 +1,4 @@
+# cp backend.hcl.example backend.hcl 후 값을 채우고
+# terraform init -backend-config=backend.hcl
+bucket = "REPLACE_ME-tfstate-bucket"
+region = "ap-northeast-2"

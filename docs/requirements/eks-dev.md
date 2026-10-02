@@ -1,7 +1,7 @@
 # 요구사항: 쇼핑몰 dev 환경 EKS 구축
 
 > 플랫폼팀 회의에서 정한 내용. 결정되지 않은 것은 "미정" 으로 남겼다.
-> 작업 계약서(contracts/eks-demo.md)는 이 문서와 CLAUDE.md(팀 규칙)를 바탕으로 쓴다.
+> 작업 스펙(specs/eks-demo.md)은 이 문서와 CLAUDE.md(팀 규칙)를 바탕으로 쓴다.
 
 ## 목적
 

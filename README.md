@@ -18,7 +18,7 @@
 CLAUDE.md                 저장소 규칙 (사람과 Claude 공통)
 .claude/                  권한(allow/ask/deny), Hook, Skill
 .mcp.json                 EKS · Argo CD MCP (읽기 전용)
-contracts/eks-demo.md     작업 계약서 (1-1)
+specs/eks-demo.md     작업 스펙 (현재 작업)
 infra/cluster             VPC · EKS · ECR · GitHub OIDC (Terraform)
 infra/platform            Argo CD + root Application (Terraform)
 gitops/apps               Argo CD Application (dev 자동 / prod 수동)

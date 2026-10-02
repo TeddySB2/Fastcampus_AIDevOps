@@ -5,7 +5,7 @@ Claude 가 강의 맥락에 끌려가지 않도록 `.claude/settings.json` 에�
 
 ## 진행 방식
 
-- **Ch1 (1-1, 1-2) 은 강사 시연이다.** 계약서를 쓰고 규칙을 다듬는 과정을 보여주고, 그 결과를 `p3-ch1-end` 태그로 제공한다.
+- **Ch1 (1-1, 1-2) 은 강사 시연이다.** 스펙을 쓰고 규칙을 다듬는 과정을 보여주고, 그 결과를 `p3-ch1-end` 태그로 제공한다.
 - **2-1 부터 직접 실습한다.** 처음 한 번 `p3-ch1-end` 에서 작업 브랜치를 만들고, 이후 클립은 같은 브랜치에서 이어간다.
   ```bash
   git clone https://github.com/TeddySB2/Fastcampus_AIDevOps.git
@@ -23,8 +23,8 @@ Claude 가 강의 맥락에 끌려가지 않도록 `.claude/settings.json` 에�
 
 | 클립 | 태그 | 상태 |
 | --- | --- | --- |
-| 1-1 · 1-2 (시연) | `p3-ch1-start` | 요구사항 메모, 계약서 템플릿, CLAUDE.md 최소본, .claude 설정, app/product-catalog. infra · gitops 없음. 시연 메모: `course/1-1.md`, `course/1-2.md` |
-| 2-1 (실습 시작) | `p3-ch1-end` | Ch1 시연 결과: 계약서, 다듬은 CLAUDE.md 와 권한 설정 |
+| 1-1 · 1-2 (시연) | `p3-ch1-start` | 요구사항 메모, 스펙 템플릿, CLAUDE.md 최소본, .claude 설정, app/product-catalog. infra · gitops 없음. 시연 메모: `course/1-1.md`, `course/1-2.md` |
+| 2-1 (실습 시작) | `p3-ch1-end` | Ch1 시연 결과: 스펙, 다듬은 CLAUDE.md 와 권한 설정 |
 | 2-2 | `p3-ch2-start` | infra/cluster 에 versions · backend · providers · github-oidc 만 |
 | 2-2 끝 | `p3-ch2-end` | infra 기준 코드 |
 | 그 외 | `main` (p3-end) | Part 3 완료 상태 |

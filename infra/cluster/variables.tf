@@ -11,7 +11,7 @@ variable "environment" {
 }
 
 variable "region" {
-  description = "AWS 리전. 작업 계약서(contracts/eks-demo.md)의 값과 같아야 한다"
+  description = "AWS 리전. 작업 스펙(specs/eks-demo.md)의 값과 같아야 한다"
   type        = string
   default     = "ap-northeast-2"
 }
@@ -89,7 +89,7 @@ variable "node_desired_size" {
 }
 
 variable "node_max_size" {
-  description = "비용 상한. 작업 계약서의 최대 노드 수와 같아야 한다"
+  description = "비용 상한. 작업 스펙의 최대 노드 수와 같아야 한다"
   type        = number
   default     = 4
 }

@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(terraform fmt:*)",
+      "Bash(terraform validate:*)",
+      "Bash(terraform init:*)",
+      "Bash(terraform plan:*)",
+      "Bash(terraform show:*)",
+      "Bash(tflint:*)",
+      "Bash(checkov:*)",
+      "Bash(kubectl get:*)",
+      "Bash(kubectl describe:*)",
+      "Bash(kubectl logs:*)",
+      "Bash(kubectl events:*)",
+      "Bash(kubectl top:*)",
+      "Bash(kubectl rollout status:*)",
+      "Bash(kubectl rollout history:*)",
+      "Bash(kubectl config current-context)",
+      "Bash(helm template:*)",
+      "Bash(helm lint:*)",
+      "Bash(kubeconform:*)",
+      "Bash(yq:*)",
+      "Bash(argocd app get:*)",
+      "Bash(argocd app diff:*)",
+      "Bash(argocd app history:*)",
+      "Bash(argocd app list:*)",
+      "Bash(git status)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git switch -c:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(./tests/smoke.sh:*)",
+      "mcp__argocd",
+      "mcp__eks"
+    ],
+    "ask": [
+      "Bash(git push:*)",
+      "Bash(gh pr create:*)",
+      "Bash(./scenarios/:*)"
+    ],
+    "deny": [
+      "Bash(terraform apply:*)",
+      "Bash(terraform destroy:*)",
+      "Bash(terraform import:*)",
+      "Bash(terraform state:*)",
+      "Bash(kubectl apply:*)",
+      "Bash(kubectl create:*)",
+      "Bash(kubectl edit:*)",
+      "Bash(kubectl patch:*)",
+      "Bash(kubectl delete:*)",
+      "Bash(kubectl scale:*)",
+      "Bash(kubectl set:*)",
+      "Bash(kubectl rollout restart:*)",
+      "Bash(kubectl rollout undo:*)",
+      "Bash(kubectl exec:*)",
+      "Bash(kubectl get secret:*)",
+      "Bash(helm install:*)",
+      "Bash(helm upgrade:*)",
+      "Bash(helm uninstall:*)",
+      "Bash(argocd app sync:*)",
+      "Bash(argocd app delete:*)",
+      "Bash(argocd app set:*)",
+      "Bash(gh pr merge:*)",
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(git push origin main:*)",
+      "Read(./**/*.tfstate)",
+      "Read(./**/*.tfstate.*)",
+      "Read(./**/.terraform/**)",
+      "Read(./**/*.tfvars)",
+      "Read(./.env)",
+      "Read(~/.aws/**)",
+      "Read(~/.kube/**)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/guard-kube-context.sh" }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|MultiEdit|Write",
+        "hooks": [
+          { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/post-edit-validate.sh" }
+        ]
+      }
+    ]
+  }
+}

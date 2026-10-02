@@ -1,0 +1,43 @@
+# dev: main 브랜치에 merge 되면 자동으로 동기화된다.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: otel-demo-dev
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: otel-demo
+  sources:
+    - repoURL: https://open-telemetry.github.io/opentelemetry-helm-charts
+      chart: opentelemetry-demo
+      targetRevision: 0.42.1 # 촬영 기간 동안 고정 (appVersion 3.1.0)
+      helm:
+        releaseName: otel-demo
+        valueFiles:
+          - $values/gitops/values/otel-demo/common.yaml
+          - $values/gitops/values/otel-demo/dev.yaml
+    - repoURL: https://github.com/REPLACE_ME_OWNER/ai-devops-lab.git
+      targetRevision: main
+      ref: values
+    - repoURL: https://github.com/REPLACE_ME_OWNER/ai-devops-lab.git
+      targetRevision: main
+      path: gitops/manifests/dev
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: otel-demo-dev
+  # HPA 가 replicas 를 바꾸므로 Argo CD 가 되돌리지 않도록 한다 (4-1)
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      name: frontend
+      jsonPointers:
+        - /spec/replicas
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - RespectIgnoreDifferences=true

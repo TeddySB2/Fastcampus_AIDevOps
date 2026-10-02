@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "eks": {
+      "command": "uvx",
+      "args": ["awslabs.eks-mcp-server@latest"],
+      "env": {
+        "AWS_PROFILE": "ai-devops-readonly",
+        "AWS_REGION": "ap-northeast-2",
+        "FASTMCP_LOG_LEVEL": "ERROR"
+      }
+    },
+    "argocd": {
+      "command": "npx",
+      "args": ["-y", "argocd-mcp@latest", "stdio"],
+      "env": {
+        "ARGOCD_BASE_URL": "http://localhost:8081",
+        "ARGOCD_API_TOKEN": "${ARGOCD_MCP_TOKEN}",
+        "MCP_READ_ONLY": "true"
+      }
+    }
+  }
+}

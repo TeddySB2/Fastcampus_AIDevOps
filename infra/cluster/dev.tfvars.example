@@ -1,0 +1,16 @@
+# cp dev.tfvars.example dev.tfvars 후 값을 채운다 (dev.tfvars 는 커밋하지 않는다)
+environment = "dev"
+region      = "ap-northeast-2"
+
+# 본인 공인 IP/32 처럼 좁게. 0.0.0.0/0 은 checkov 에서 실패한다
+endpoint_public_access_cidrs = ["203.0.113.10/32"]
+
+# Claude Code 가 쓰는 읽기 전용 역할
+readonly_principal_arns = ["arn:aws:iam::123456789012:role/ai-devops-readonly"]
+
+github_repository = "REPLACE_ME_OWNER/ai-devops-lab"
+
+# Part 2 VPC 를 재사용할 때
+# create_vpc                  = false
+# existing_vpc_id             = "vpc-xxxxxxxx"
+# existing_private_subnet_ids = ["subnet-a", "subnet-b", "subnet-c"]

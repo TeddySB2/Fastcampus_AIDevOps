@@ -1,0 +1,3 @@
+region          = "ap-northeast-2"
+cluster_name    = "ai-devops-lab-dev"
+gitops_repo_url = "https://github.com/REPLACE_ME_OWNER/ai-devops-lab.git"

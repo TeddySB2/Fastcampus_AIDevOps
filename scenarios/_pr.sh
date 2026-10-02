@@ -7,8 +7,8 @@ VALUES="$ROOT/gitops/values/otel-demo/dev.yaml"
 need() { command -v "$1" >/dev/null || { echo "필요한 도구가 없습니다: $1" >&2; exit 1; }; }
 need git; need gh; need yq
 
-open_pr() { # branch title body
-  local branch=$1 title=$2 body=$3
+open_pr() { # branch
+  local branch=$1
   git -C "$ROOT" checkout -q main && git -C "$ROOT" pull -q --ff-only
   git -C "$ROOT" checkout -q -B "$branch"
 }

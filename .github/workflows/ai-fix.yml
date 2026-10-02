@@ -15,6 +15,11 @@ on:
     workflows: ["CI"]
     types: [completed]
 
+# 같은 브랜치에서 실패가 연달아 나도 수정 시도는 하나만 돈다
+concurrency:
+  group: ai-fix-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: true
+
 permissions:
   contents: write
   pull-requests: write

@@ -53,8 +53,14 @@ variable "existing_private_subnet_ids" {
 # 클러스터 접근
 # ---------------------------------------------------------------------------
 variable "endpoint_public_access_cidrs" {
-  description = "퍼블릭 API 엔드포인트에 접근 가능한 CIDR. 0.0.0.0/0 은 정책 검사에서 실패한다"
+  description = "퍼블릭 API 엔드포인트에 접근 가능한 CIDR. 본인 공인 IP/32 처럼 좁게"
   type        = list(string)
+
+  # checkov 는 레지스트리 모듈 내부까지 보지 않아 0.0.0.0/0 을 잡지 못한다 → 변수 검증으로 막는다 (2-2)
+  validation {
+    condition     = length(var.endpoint_public_access_cidrs) > 0 && !contains(var.endpoint_public_access_cidrs, "0.0.0.0/0")
+    error_message = "endpoint_public_access_cidrs 에 0.0.0.0/0 은 허용하지 않습니다. 본인 IP/32 를 넣으세요."
+  }
 }
 
 variable "readonly_principal_arns" {

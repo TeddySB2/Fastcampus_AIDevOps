@@ -2,7 +2,7 @@
 environment = "dev"
 region      = "ap-northeast-2"
 
-# 본인 공인 IP/32 처럼 좁게. 0.0.0.0/0 은 checkov 에서 실패한다
+# 본인 공인 IP/32 처럼 좁게. 0.0.0.0/0 은 variables.tf 의 validation 에서 거부된다
 endpoint_public_access_cidrs = ["203.0.113.10/32"]
 
 # Claude Code 가 쓰는 읽기 전용 역할

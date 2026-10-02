@@ -47,7 +47,7 @@
 - 배포된 product-catalog 이미지 digest 가 ECR 의 digest 와 일치
 - `tests/smoke.sh` 통과: 상품 목록 → 상세 → 장바구니 추가 → 조회 → 비우기
 - 실패하면 revert PR 로 되돌리고 같은 검사를 다시 통과
-- 정리 후 LB · EBS · ENI 잔여 0 (ECR 저장소와 state 버킷은 남긴다)
+- 정리 후 LB · EBS · ENI 잔여 0. state 버킷만 남기고, ECR 저장소는 destroy 때 이미지와 함께 지운다
 
 ## 미정 (다음 회의 전까지)
 

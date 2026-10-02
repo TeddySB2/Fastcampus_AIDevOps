@@ -53,7 +53,7 @@
 | 배포 | Argo CD 앱 Synced + Healthy, product-catalog 이미지 digest 가 ECR digest 와 일치 |
 | 기능 | `tests/smoke.sh` 통과 (상품 목록 → 상세 → 장바구니 추가 → 조회 → 비우기) |
 | 실패 대응 | 실패하면 다음 변경 중단 → revert PR 로 되돌림 → 같은 검사 다시 통과 |
-| 종료 | 문서화된 순서로 삭제, LB · EBS · ENI 잔여 0 (ECR 저장소 · state 버킷은 남김) |
+| 종료 | 문서화된 순서로 삭제, LB · EBS · ENI 잔여 0 (state 버킷만 남김, ECR 저장소는 함께 삭제) |
 
 ## 6. 승인자
 

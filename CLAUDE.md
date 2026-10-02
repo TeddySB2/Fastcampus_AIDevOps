@@ -36,7 +36,7 @@
 3. 조회는 자유롭게 한다: `kubectl get/describe/logs/events`, `argocd app get/diff/history`, MCP(읽기 전용).
 4. 주장에는 근거를 붙인다: 파일 경로와 줄, 명령과 출력, 리소스 이름. 근거가 없으면 "가정" 이라고 쓴다.
 5. 모르는 값(계정 ID, 승인자, 예산 등)은 만들어 내지 말고 질문한다.
-6. Secret 값, 토큰, state 파일 내용은 읽지도 출력하지도 않는다.
+6. Secret · 토큰 · state 파일은 직접 열거나 출력하지 않는다. `terraform plan/show` 의 요약은 다룬다 (민감한 값은 가린다).
 
 ## 완료 조건 (작업을 끝냈다고 말하기 전에 확인)
 

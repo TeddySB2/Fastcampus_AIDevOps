@@ -1,7 +1,8 @@
 # dev 환경 값.
 #
-# product-catalog 이미지는 CI(.github/workflows/ci.yml)가 아래 블록을 추가·갱신하는 PR 을 만든다.
-# CI 가 한 번도 돌지 않은 상태에서는 차트 기본(업스트림) 이미지를 쓴다.
+# product-catalog 이미지: 2-3 에서 처음 ECR 에 push 한 뒤 아래 블록을 추가하는 PR 을 만든다(수동).
+# 6-1 부터는 CI(.github/workflows/ci.yml)가 이 블록을 갱신하는 PR 을 만든다.
+# 블록이 없으면 차트 기본(업스트림) 이미지를 쓴다.
 # tag 형식: "<git sha>@sha256:<digest>"  → 차트가 "<repository>:<tag>" 로 조립한다.
 #
 # components:

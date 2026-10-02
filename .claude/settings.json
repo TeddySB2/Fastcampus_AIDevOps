@@ -32,6 +32,13 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(./tests/smoke.sh:*)",
+      "Bash(go test:*)",
+      "Bash(go build:*)",
+      "Bash(go vet:*)",
+      "Bash(docker build:*)",
+      "Bash(docker images:*)",
+      "Bash(docker inspect:*)",
+      "Bash(trivy image:*)",
       "mcp__argocd",
       "mcp__eks"
     ],

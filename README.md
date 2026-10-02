@@ -3,7 +3,14 @@
 쇼핑몰 서비스의 dev 환경을 AWS EKS 에 GitOps 로 구축·운영하는 플랫폼팀 저장소.
 쇼핑몰 서비스로는 OpenTelemetry Demo(Astronomy Shop)를 쓴다. Claude Code 와 함께 작업하되, 판정은 도구가 하고 승인은 사람이 한다.
 
-> 강의 수강생은 [course/README.md](course/README.md) 에서 클립별 시작 태그와 진행 순서를 확인한다.
+> **강의 수강생:** `main` 은 Part 3 완성본이다. 클론한 뒤 클립의 시작 태그에서 작업 브랜치를 만들어 시작한다.
+>
+> ```bash
+> git clone https://github.com/TeddySB2/Fastcampus_AIDevOps.git && cd Fastcampus_AIDevOps
+> git switch -c ch1 p3-ch1-start
+> ```
+>
+> 클립별 태그와 진행 순서는 [course/README.md](course/README.md) 에 있다.
 
 ## 구성
 

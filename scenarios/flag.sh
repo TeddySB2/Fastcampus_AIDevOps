@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # flagd 플래그의 defaultVariant 를 바꾼다 (장애·부하 재현용).
 #   ./scenarios/flag.sh productCatalogFailure on
-#   ./scenarios/flag.sh loadGeneratorVUs 50      # variant 이름은 demo.flagd.json 을 따른다
-#   ./scenarios/flag.sh --list
+#   ./scenarios/flag.sh loadGeneratorFloodHomepage on
+#   ./scenarios/flag.sh --list          # 플래그와 variant 목록 (차트 0.42.1 기준 18개)
 # flagd 는 emptyDir 의 파일을 읽으므로 Argo CD 의 selfHeal 과 충돌하지 않는다.
 # 초기화: kubectl -n $NS rollout restart deploy/flagd  (init 컨테이너가 ConfigMap 을 다시 복사)
 set -euo pipefail

@@ -88,7 +88,7 @@ claude
 | 스크립트 | 장면 | 클립 |
 | --- | --- | --- |
 | `scenarios/flag.sh productCatalogFailure on` | Pod 는 Running 인데 Smoke 실패 | 2-3 |
-| `scenarios/flag.sh loadGeneratorVUs <variant>` | 부하 증가 → HPA 확장 | 4-1 |
+| `scenarios/flag.sh loadGeneratorFloodHomepage on` (또는 Locust UI `/loadgen/`) | 부하 증가 → HPA 확장 | 4-1 |
 | `scenarios/break-values.sh` | 잘못된 이미지 태그 → Degraded | 3-2 |
 | `scenarios/break-env.sh` | DB 설정 누락 → CrashLoopBackOff | 5-1 |
 | `scenarios/break-oom.sh` | memory limit 축소 → OOMKilled | 5-1 |

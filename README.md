@@ -1,4 +1,4 @@
-# ai-devops-lab
+# Fastcampus_AIDevOps (ai-devops-lab)
 
 「AI DevOps 구축과 운영」 Part 3 ~ 8 실습 저장소.
 OpenTelemetry Demo 를 EKS 에 GitOps 로 배포하고, Claude Code 와 함께 운영한다.
@@ -23,6 +23,17 @@ scenarios/                장애·실수 장면 재현 스크립트, reset
 .github/workflows         CI(빌드·스캔·배포 PR), 승격, headless AI 수정 PR
 docs/                     구축 기록, 정리 순서
 ```
+
+## 애플리케이션 소스는 왜 product-catalog 만 있나
+
+배포는 OpenTelemetry Demo **전체**(서비스 25개 + 관측 스택)를 한다. 다만 소스를 이 저장소에 두지 않는다.
+
+- 앱 정의: 공식 Helm 차트 `open-telemetry/opentelemetry-demo` **0.42.1** (gitops/apps/*.yaml 에 고정)
+- 이미지: 업스트림이 빌드해 둔 `ghcr.io/open-telemetry/demo:3.1.0-<서비스>`
+- 이 저장소에 두는 것: 차트에 덮어쓸 값(`gitops/values`), 차트 밖 리소스(`gitops/manifests`), 직접 고치는 서비스 소스(`app/product-catalog`)
+- product-catalog 만 `dev.yaml` 의 `imageOverride` 로 우리 ECR 이미지(digest 고정)로 바꾼다
+
+전체 소스가 필요하면 업스트림을 본다: https://github.com/open-telemetry/opentelemetry-demo/tree/3.1.0
 
 ## 준비물
 

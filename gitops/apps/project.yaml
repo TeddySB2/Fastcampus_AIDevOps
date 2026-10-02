@@ -8,7 +8,7 @@ spec:
   description: OpenTelemetry Demo (dev / prod)
   sourceRepos:
     - https://open-telemetry.github.io/opentelemetry-helm-charts
-    - https://github.com/REPLACE_ME_OWNER/ai-devops-lab.git
+    - https://github.com/TeddySB2/Fastcampus_AIDevOps.git
   destinations:
     - server: https://kubernetes.default.svc
       namespace: otel-demo-dev

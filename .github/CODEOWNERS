@@ -1,6 +1,6 @@
 # prod 값과 인프라·정책 변경은 지정된 리뷰어 승인이 필요하다 (브랜치 보호 규칙과 함께 사용)
-/gitops/values/otel-demo/prod.yaml   @REPLACE_ME_OWNER
-/gitops/apps/                        @REPLACE_ME_OWNER
-/infra/                              @REPLACE_ME_OWNER
-/.claude/                            @REPLACE_ME_OWNER
-/.github/                            @REPLACE_ME_OWNER
+/gitops/values/otel-demo/prod.yaml   @TeddySB2
+/gitops/apps/                        @TeddySB2
+/infra/                              @TeddySB2
+/.claude/                            @TeddySB2
+/.github/                            @TeddySB2

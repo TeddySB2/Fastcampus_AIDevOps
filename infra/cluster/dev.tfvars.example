@@ -8,7 +8,7 @@ endpoint_public_access_cidrs = ["203.0.113.10/32"]
 # Claude Code 가 쓰는 읽기 전용 역할
 readonly_principal_arns = ["arn:aws:iam::123456789012:role/ai-devops-readonly"]
 
-github_repository = "REPLACE_ME_OWNER/ai-devops-lab"
+github_repository = "TeddySB2/Fastcampus_AIDevOps"
 
 # Part 2 VPC 를 재사용할 때
 # create_vpc                  = false

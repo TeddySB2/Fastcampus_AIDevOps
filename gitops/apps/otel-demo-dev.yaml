@@ -17,10 +17,10 @@ spec:
         valueFiles:
           - $values/gitops/values/otel-demo/common.yaml
           - $values/gitops/values/otel-demo/dev.yaml
-    - repoURL: https://github.com/REPLACE_ME_OWNER/ai-devops-lab.git
+    - repoURL: https://github.com/TeddySB2/Fastcampus_AIDevOps.git
       targetRevision: main
       ref: values
-    - repoURL: https://github.com/REPLACE_ME_OWNER/ai-devops-lab.git
+    - repoURL: https://github.com/TeddySB2/Fastcampus_AIDevOps.git
       targetRevision: main
       path: gitops/manifests/dev
   destination:

@@ -5,11 +5,9 @@
 
 ## 환경 사실 (추정하지 말고 이 값을 쓴다)
 
-- AWS 리전: ap-northeast-2 / 클러스터: ai-devops-lab-dev
-- 네임스페이스: otel-demo-dev (자동 동기화), otel-demo-prod (수동 동기화), argocd
-- 차트: opentelemetry-demo 0.42.1 (appVersion 3.1.0) — gitops/apps/*.yaml 에 고정
+- 아직 정해지지 않았다. 계정 · 리전 · 클러스터 · 네임스페이스는 작업 계약서(contracts/)에서 정한다.
+- 쇼핑몰 서비스: OpenTelemetry Demo 공식 Helm 차트 (버전은 계약서에서 고정)
 - 직접 빌드하는 서비스: app/product-catalog 하나뿐. 나머지는 차트 기본 이미지
-- 이 값과 실제 환경이 다르면 작업을 멈추고 사람에게 알린다
 
 ## 작업 계약 (현재 작업의 목적 · 환경 · 범위 · 제약 · 완료 증거)
 
@@ -44,12 +42,3 @@
 - GitOps: YAML 파싱, `helm template` 렌더링, `kubeconform`
 - 배포: Argo CD 앱 Healthy + `tests/smoke.sh` 통과. Pod 가 Running 인 것만으로는 완료가 아니다
 - 보고: 무엇을 바꿨는지, 어떤 검증을 통과했는지, 확인하지 못한 것이 무엇인지
-
-## 자주 쓰는 명령
-
-```bash
-aws eks update-kubeconfig --region ap-northeast-2 --name ai-devops-lab-dev
-kubectl -n otel-demo-dev port-forward svc/frontend-proxy 8080:8080   # 상점 UI, /feature 는 플래그 UI
-kubectl -n argocd port-forward svc/argocd-server 8081:80             # Argo CD
-BASE_URL=http://localhost:8080 ./tests/smoke.sh
-```

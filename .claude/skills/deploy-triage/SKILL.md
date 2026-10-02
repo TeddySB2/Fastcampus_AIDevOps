@@ -9,7 +9,7 @@ description: 배포 직후 Pod 가 CrashLoopBackOff·ImagePullBackOff·OOMKilled
 
 ## 0. 범위 확인
 
-- `kubectl config current-context` 와 대상 네임스페이스를 먼저 출력한다. CLAUDE.md 의 환경 사실과 다르면 멈춘다.
+- `kubectl config current-context` 와 대상 네임스페이스를 먼저 출력한다. 계약서(contracts/eks-demo.md) "2. 환경" 과 다르면 멈춘다.
 - 대상 앱(예: otel-demo-dev)과 의심 워크로드를 사용자에게서 받는다. 없으면 Degraded 리소스부터 찾는다.
 
 ## 1. 증거 수집 (이 순서로, 모두 읽기 전용)

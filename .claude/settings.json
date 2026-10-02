@@ -79,7 +79,8 @@
       "Read(./**/*.tfvars)",
       "Read(./.env)",
       "Read(~/.aws/**)",
-      "Read(~/.kube/**)"
+      "Read(~/.kube/**)",
+      "Read(./course/**)"
     ]
   },
   "hooks": {

@@ -17,16 +17,16 @@ variable "region" {
 }
 
 variable "kubernetes_version" {
-  description = "EKS Kubernetes 버전. 촬영 기간 동안 고정한다"
+  description = "EKS Kubernetes 버전. 업그레이드는 단독 PR 로 한다"
   type        = string
   default     = "1.36"
 }
 
 # ---------------------------------------------------------------------------
-# 네트워크: Part 2 에서 만든 VPC 를 쓰거나, 여기서 새로 만든다
+# 네트워크: 기존 VPC 를 쓰거나, 여기서 새로 만든다
 # ---------------------------------------------------------------------------
 variable "create_vpc" {
-  description = "true 면 이 루트에서 VPC 를 만든다. Part 2 VPC 를 재사용하면 false"
+  description = "true 면 이 루트에서 VPC 를 만든다. 기존 VPC 를 재사용하면 false"
   type        = bool
   default     = true
 }
@@ -56,7 +56,7 @@ variable "endpoint_public_access_cidrs" {
   description = "퍼블릭 API 엔드포인트에 접근 가능한 CIDR. 본인 공인 IP/32 처럼 좁게"
   type        = list(string)
 
-  # checkov 는 레지스트리 모듈 내부까지 보지 않아 0.0.0.0/0 을 잡지 못한다 → 변수 검증으로 막는다 (2-2)
+  # checkov 는 레지스트리 모듈 내부까지 보지 않아 0.0.0.0/0 을 잡지 못한다 → 변수 검증으로 막는다
   validation {
     condition     = length(var.endpoint_public_access_cidrs) > 0 && !contains(var.endpoint_public_access_cidrs, "0.0.0.0/0")
     error_message = "endpoint_public_access_cidrs 에 0.0.0.0/0 은 허용하지 않습니다. 본인 IP/32 를 넣으세요."
@@ -73,7 +73,7 @@ variable "readonly_principal_arns" {
 # 노드
 # ---------------------------------------------------------------------------
 variable "node_instance_types" {
-  description = "매니지드 노드그룹 인스턴스 타입. 촬영 전 실측으로 확정한다"
+  description = "매니지드 노드그룹 인스턴스 타입. 실측 사용량으로 조정한다"
   type        = list(string)
   default     = ["m6i.xlarge"]
 }

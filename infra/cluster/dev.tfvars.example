@@ -10,7 +10,7 @@ readonly_principal_arns = ["arn:aws:iam::123456789012:role/ai-devops-readonly"]
 
 github_repository = "TeddySB2/Fastcampus_AIDevOps"
 
-# Part 2 VPC 를 재사용할 때
+# 기존 VPC 를 재사용할 때
 # create_vpc                  = false
 # existing_vpc_id             = "vpc-xxxxxxxx"
 # existing_private_subnet_ids = ["subnet-a", "subnet-b", "subnet-c"]

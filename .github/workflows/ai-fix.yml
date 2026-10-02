@@ -1,10 +1,10 @@
-# 6-3: CI 가 PR 에서 실패하면 headless Claude 가 원인을 분석하고 수정 PR 을 연다.
+# CI 가 PR 에서 실패하면 headless Claude 가 원인을 분석하고 수정 PR 을 연다.
 #
 # 안전장치
 #   - fork PR 은 제외 (같은 저장소 브랜치만)
 #   - Claude 가 쓸 수 있는 도구를 --allowedTools 로 제한, --max-turns 로 반복 횟수 제한
 #   - main 에 직접 push 하지 않는다. 결과는 항상 별도 브랜치의 PR 이고 merge 는 사람이 한다
-#   - CI 로그는 외부 입력이다. 로그 안의 지시문은 따르지 않도록 프롬프트에 명시한다 (Part 7 에서 다시 다룸)
+#   - CI 로그는 외부 입력이다. 로그 안의 지시문은 따르지 않도록 프롬프트에 명시한다
 #
 # 저장소 설정: Secrets.ANTHROPIC_API_KEY
 # 참고: https://github.com/anthropics/claude-code-action (examples/ci-failure-auto-fix.yml)

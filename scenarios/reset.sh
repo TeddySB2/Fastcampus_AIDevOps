@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# 테이크를 다시 갈 때 시작 상태로 되돌린다. (강사 리허설·촬영 전용)
-#   ./scenarios/reset.sh p3-ch5-start
+# 장애 훈련을 다시 할 때 지정한 태그의 상태로 되돌린다.
+#   ./scenarios/reset.sh <tag>
 # 1) 시나리오 PR 닫기와 브랜치 삭제  2) main 을 태그로 되돌리기(강제 push, 확인 필요)
 # 3) flagd 초기화  4) Argo CD 동기화 대기
 set -euo pipefail

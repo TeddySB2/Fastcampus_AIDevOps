@@ -10,7 +10,7 @@ variable "cluster_name" {
 }
 
 variable "argocd_chart_version" {
-  description = "argo-helm 의 argo-cd 차트 버전. 촬영 기간 동안 고정"
+  description = "argo-helm 의 argo-cd 차트 버전. 업그레이드는 단독 PR 로"
   type        = string
   default     = "10.9.6"
 }

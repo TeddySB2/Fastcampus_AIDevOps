@@ -1,4 +1,4 @@
-# 4-1: frontend 를 CPU 사용률 기준으로 확장한다.
+# frontend 를 CPU 사용률 기준으로 확장한다.
 # requests 는 gitops/values/otel-demo/common.yaml 에서 정의한다.
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler

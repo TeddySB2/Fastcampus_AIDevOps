@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 사용자 여정 Smoke Test (2-3, 5-3, 6-x 에서 사용)
+# 사용자 여정 Smoke Test (배포 · 복구 · 승격 후 공통 판정)
 #   상품 목록 → 상품 상세 → 장바구니 추가 → 장바구니 조회 → 장바구니 비우기
 # 성공/실패는 exit code 로만 판정한다. (AI 의 "정상입니다" 는 판정 기준이 아니다)
 #
@@ -10,7 +10,7 @@ set -euo pipefail
 
 BASE_URL="${BASE_URL:-http://localhost:8080}"
 SESSION_ID="smoke-$(date +%s)"
-# productCatalogFailure 플래그가 실패시키는 상품. 2-3 에서 "Running 인데 실패" 장면에 쓴다
+# productCatalogFailure 플래그가 실패시키는 상품. 이 플래그가 켜지면 이 검사가 실패한다
 PRODUCT_IDS=(${PRODUCT_IDS:-OLJCESPC7Z 66VCHSJNUP})
 
 fail() { echo "FAIL: $*" >&2; exit 1; }

@@ -1,4 +1,4 @@
-# prod: 자동 동기화하지 않는다. 승격 PR 이 merge 된 뒤 사람이 직접 Sync 한다 (6-2).
+# prod: 자동 동기화하지 않는다. 승격 PR 이 merge 된 뒤 사람이 직접 Sync 한다.
 # 학습 비용을 위해 같은 클러스터의 별도 네임스페이스를 prod 로 사용한다.
 apiVersion: argoproj.io/v1alpha1
 kind: Application

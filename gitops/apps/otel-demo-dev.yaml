@@ -11,7 +11,7 @@ spec:
   sources:
     - repoURL: https://open-telemetry.github.io/opentelemetry-helm-charts
       chart: opentelemetry-demo
-      targetRevision: 0.42.1 # 촬영 기간 동안 고정 (appVersion 3.1.0)
+      targetRevision: 0.42.1 # 버전 고정, 업그레이드는 단독 PR (appVersion 3.1.0)
       helm:
         releaseName: otel-demo
         valueFiles:
@@ -26,7 +26,7 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: otel-demo-dev
-  # HPA 가 replicas 를 바꾸므로 Argo CD 가 되돌리지 않도록 한다 (4-1)
+  # HPA 가 replicas 를 바꾸므로 Argo CD 가 되돌리지 않도록 한다
   ignoreDifferences:
     - group: apps
       kind: Deployment

@@ -1,9 +1,9 @@
-# Fastcampus_AIDevOps (ai-devops-lab)
+# ai-devops-lab
 
-「AI DevOps 구축과 운영」 Part 3 ~ 8 실습 저장소.
-OpenTelemetry Demo 를 EKS 에 GitOps 로 배포하고, Claude Code 와 함께 운영한다.
+쇼핑몰 서비스의 dev 환경을 AWS EKS 에 GitOps 로 구축·운영하는 플랫폼팀 저장소.
+쇼핑몰 서비스로는 OpenTelemetry Demo(Astronomy Shop)를 쓴다. Claude Code 와 함께 작업하되, 판정은 도구가 하고 승인은 사람이 한다.
 
-> 이 브랜치는 **Part 3 완료 상태(p3-end)** 다. 챕터별 시작 상태는 `p3-chN-start` 태그로 제공한다.
+> 강의 수강생은 [course/README.md](course/README.md) 에서 클립별 시작 태그와 진행 순서를 확인한다.
 
 ## 구성
 
@@ -21,7 +21,8 @@ app/product-catalog       직접 빌드하는 유일한 서비스 (업스트림 
 tests/smoke.sh            사용자 여정 Smoke Test
 scenarios/                장애·실수 장면 재현 스크립트, reset
 .github/workflows         CI(빌드·스캔·배포 PR), 승격, headless AI 수정 PR
-docs/                     구축 기록, 정리 순서
+docs/                     정리 순서
+course/                   강의 진행용 자료 (Claude 는 읽지 않도록 deny)
 ```
 
 ## 애플리케이션 소스는 왜 product-catalog 만 있나
@@ -44,13 +45,13 @@ docs/                     구축 기록, 정리 순서
 | argocd CLI, gh CLI | GitOps·PR |
 | Claude Code, uv(uvx), Node.js(npx) | 에이전트·MCP |
 
-버전은 `docs/setup-log.md` 에 기록하고 촬영 기간 동안 고정한다.
+버전은 고정하고, 올릴 때는 단독 PR 로 한다.
 
 ## 처음 한 번 (부트스트랩)
 
 ```bash
-# 0. 자리표시자 교체 (GitHub owner)
-./scripts/init-repo.sh <github-owner>
+# 0. 자리표시자 교체 (fork 한 경우: GitHub owner, 저장소 이름)
+./scripts/init-repo.sh <github-owner> <repo-name>
 
 # 1. 클러스터 (사람이 plan 을 검토하고 apply)
 cd infra/cluster
@@ -62,8 +63,8 @@ aws eks update-kubeconfig --region ap-northeast-2 --name "$(terraform output -ra
 
 # 2. GitHub 저장소 변수 등록 (Settings → Secrets and variables → Actions → Variables)
 #    AWS_REGION, AWS_CI_ROLE_ARN(=github_ci_role_arn), ECR_REPOSITORY_URL(=ecr_repository_url)
-#    Secrets: ANTHROPIC_API_KEY (6-3)
-#    Environments: prod (승인자 지정, 6-2)
+#    Secrets: ANTHROPIC_API_KEY (CI 실패 시 headless Claude 수정 PR)
+#    Environments: prod (승인자 지정)
 
 # 3. 플랫폼 (Argo CD + root Application)
 cd ../platform
@@ -78,9 +79,9 @@ kubectl -n otel-demo-dev port-forward svc/frontend-proxy 8080:8080 &
 ```
 
 - GitOps 저장소는 공개 저장소를 가정한다. 비공개면 Argo CD 에 저장소 자격 증명을 추가해야 한다.
-- prod(`otel-demo-prod`)는 6-2 전까지 동기화하지 않는다. 관측 스택 없이 앱만 올라간다.
+- prod(`otel-demo-prod`)는 승격 PR 이 merge 되기 전까지 동기화하지 않는다. 관측 스택 없이 앱만 올라간다.
 - 처음에는 product-catalog 도 업스트림 이미지로 뜬다. `app/product-catalog` 를 바꿔 main 에 merge 하면
-  CI 가 ECR 이미지로 교체하는 PR 을 만든다 (6-1).
+  CI 가 ECR 이미지로 교체하는 PR 을 만든다.
 
 ## Claude Code
 
@@ -94,28 +95,7 @@ claude
 - 파일을 고치면 `post-edit-validate.sh` 가 fmt/validate/YAML 검사를 돌린다.
 - 배포 장애는 `/deploy-triage` Skill 로 조사한다.
 
-## 장면 재현 (강사용)
-
-| 스크립트 | 장면 | 클립 |
-| --- | --- | --- |
-| `scenarios/flag.sh productCatalogFailure on` | Pod 는 Running 인데 Smoke 실패 | 2-3 |
-| `scenarios/flag.sh loadGeneratorFloodHomepage on` (또는 Locust UI `/loadgen/`) | 부하 증가 → HPA 확장 | 4-1 |
-| `scenarios/break-values.sh` | 잘못된 이미지 태그 → Degraded | 3-2 |
-| `scenarios/break-env.sh` | DB 설정 누락 → CrashLoopBackOff | 5-1 |
-| `scenarios/break-oom.sh` | memory limit 축소 → OOMKilled | 5-1 |
-| `scenarios/reset.sh <tag>` | 시작 상태로 되돌리기 | 매 테이크 |
-
 ## 정리
 
 `docs/teardown.md` 순서를 따른다.
 
-## 검증 상태 (이 초안 기준)
-
-| 항목 | 결과 |
-| --- | --- |
-| Terraform 문법·타입 (`validate`, OpenTofu 1.10 로 대체 실행) | 통과 (cluster, platform) |
-| `checkov` (infra/.checkov.yaml 예외 3건 포함) | 35 통과 / 0 실패 |
-| GitHub Actions (`actionlint`) | 통과 |
-| `kubeconform` (HPA) | 통과 |
-| `tests/smoke.sh` (모의 서버) | 정상·실패 경로 모두 기대대로 |
-| `helm template` 렌더링, 실제 `terraform plan/apply`, 클러스터 배포 | **미실행 — 1단계 환경 완주에서 확인** |

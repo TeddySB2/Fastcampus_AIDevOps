@@ -1,6 +1,6 @@
 # ai-devops-lab
 
-OpenTelemetry Demo 를 EKS 에 GitOps 로 배포·운영하는 강의 실습 저장소다.
+쇼핑몰 서비스(OpenTelemetry Demo)의 dev 환경을 AWS EKS 에 GitOps 로 구축·운영하는 플랫폼팀 저장소다.
 이 파일은 이 저장소에서 일하는 사람과 Claude 가 함께 지키는 규칙이다.
 
 ## 환경 사실 (추정하지 말고 이 값을 쓴다)

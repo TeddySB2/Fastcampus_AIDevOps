@@ -26,7 +26,7 @@ data "aws_availability_zones" "available" {
 data "aws_caller_identity" "current" {}
 
 # ---------------------------------------------------------------------------
-# VPC (Part 2 VPC 를 재사용하면 create_vpc = false)
+# VPC (기존 VPC 를 재사용하면 create_vpc = false)
 # 학습 환경 비용을 위해 NAT 게이트웨이는 1개만 둔다. 이 선택은 AZ 장애 시
 # 아웃바운드가 끊길 수 있다는 trade-off 가 있으며, 작업 계약서에 명시한다.
 # ---------------------------------------------------------------------------

@@ -1,4 +1,4 @@
-# 촬영 환경은 port-forward 로 접속하므로 외부 노출을 하지 않는다.
+# dev 환경은 port-forward 로 접속하므로 외부 노출을 하지 않는다.
 configs:
   params:
     server.insecure: true

@@ -24,7 +24,7 @@ module "eks" {
     }
     coredns        = {}
     kube-proxy     = {}
-    metrics-server = {} # HPA 실습(4-1)에 필요
+    metrics-server = {} # HPA 가 CPU 사용률을 읽는 데 필요
   }
 
   eks_managed_node_groups = {

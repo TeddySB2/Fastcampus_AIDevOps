@@ -20,7 +20,7 @@
 | 클러스터 | ai-devops-lab-dev (Kubernetes 1.36) |
 | 네임스페이스 | otel-demo-dev (자동 Sync), otel-demo-prod (수동 Sync), argocd |
 | 차트 | OpenTelemetry Demo 공식 Helm 차트 0.42.1 |
-| 실행 전 확인 | `aws sts get-caller-identity` 의 계정, `kubectl config current-context` 가 ai-devops-lab-dev |
+| 실행 전 확인 | `aws sts get-caller-identity` 의 계정, `kubectl config current-context` 가 ai-devops-lab-dev (update-kubeconfig 에 `--alias` 로 등록) |
 
 ## 3. 범위
 
@@ -43,7 +43,7 @@
 - 노드 m6i.xlarge 최소 2 · 최대 4. API endpoint 는 작업자 IP/32 만 허용.
 - state 는 S3 backend(use_lockfile). 버킷은 사람이 만들고 지우지 않는다.
 - 비용: 월 $300 상한. AWS Budgets 알림은 사람이 콘솔에서 만들고 담당자 메일로 받는다. 넘으면 작업 중단 후 보고.
-- 수명: 작업한 날 destroy. 모든 리소스에 `expires` 태그, 최대 7일.
+- 수명: 작업한 날 destroy 한다. 잊었을 때의 안전장치로 모든 리소스에 `expires` 태그(생성 후 최대 7일)를 단다.
 - 예외: 장애 주입(flagd 플래그, 시나리오 스크립트)은 클러스터를 직접 바꾸므로 팀 규칙 1 의 예외다. 사람이 직접 실행하고 승인자는 @TeddySB2.
 
 ## 5. 완료 증거

@@ -49,7 +49,7 @@
 ## 자주 쓰는 명령
 
 ```bash
-aws eks update-kubeconfig --region ap-northeast-2 --name ai-devops-lab-dev
+aws eks update-kubeconfig --region ap-northeast-2 --name ai-devops-lab-dev --alias ai-devops-lab-dev
 kubectl -n otel-demo-dev port-forward svc/frontend-proxy 8080:8080   # 상점 UI, /feature 는 플래그 UI
 kubectl -n argocd port-forward svc/argocd-server 8081:80             # Argo CD
 BASE_URL=http://localhost:8080 ./tests/smoke.sh

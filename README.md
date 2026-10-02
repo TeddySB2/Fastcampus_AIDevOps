@@ -66,7 +66,7 @@ cp backend.hcl.example backend.hcl && cp dev.tfvars.example dev.tfvars   # 값 �
 terraform init -backend-config=backend.hcl
 terraform plan -var-file=dev.tfvars -out=tfplan
 terraform apply tfplan
-aws eks update-kubeconfig --region ap-northeast-2 --name "$(terraform output -raw cluster_name)"
+aws eks update-kubeconfig --region ap-northeast-2 --name "$(terraform output -raw cluster_name)" --alias "$(terraform output -raw cluster_name)"   # context 이름 = 클러스터 이름
 
 # 2. GitHub 저장소 변수 등록 (Settings → Secrets and variables → Actions → Variables)
 #    AWS_REGION, AWS_CI_ROLE_ARN(=github_ci_role_arn), ECR_REPOSITORY_URL(=ecr_repository_url)

@@ -3,27 +3,28 @@
 이 디렉터리는 강사·수강생용이다. 저장소 자체는 "플랫폼팀이 dev 환경을 구축한다" 는 설정으로 작성돼 있고,
 Claude 가 강의 맥락에 끌려가지 않도록 `.claude/settings.json` 에서 이 디렉터리 읽기를 막아 두었다.
 
-## 진행 방식: 브랜치 하나로 끝까지, 태그는 체크포인트
+## 진행 방식
 
-- 처음 한 번만 시작 태그에서 작업 브랜치를 만든다. 이후 클립은 **같은 브랜치에서 이어서** 진행한다.
+- **Ch1 (1-1, 1-2) 은 강사 시연이다.** 계약서를 쓰고 규칙을 다듬는 과정을 보여주고, 그 결과를 `p3-ch1-end` 태그로 제공한다.
+- **2-1 부터 직접 실습한다.** 처음 한 번 `p3-ch1-end` 에서 작업 브랜치를 만들고, 이후 클립은 같은 브랜치에서 이어간다.
   ```bash
-  git switch -c part3 p3-ch1-start
+  git clone https://github.com/TeddySB2/Fastcampus_AIDevOps.git
+  cd Fastcampus_AIDevOps
+  git switch -c part3 p3-ch1-end
   ```
-- 태그는 "기준 상태" 다. 브랜치를 바꾸지 말고, 필요한 경로만 가져온다.
+- 태그는 "기준 상태" 다. 막히면 브랜치를 바꾸지 말고 필요한 경로만 비교하거나 가져온다.
   ```bash
-  git restore --source p3-ch1-end -- contracts/eks-demo.md   # 내 계약서 대신 기준 계약서를 쓰고 싶을 때
-  git restore --source p3-ch2-end -- infra/cluster           # 2-2: 내가 만든 코드를 기준 코드로 맞출 때
-  git diff p3-ch2-end -- infra/cluster                       # 바꾸기 전에 차이부터 본다
+  git diff p3-ch2-end -- infra/cluster                       # 차이부터 본다
+  git restore --source p3-ch2-end -- infra/cluster           # 기준 코드로 맞춘다
   ```
-- 직접 만든 결과물(계약서 등)은 그대로 두고 다음 클립으로 간다. 기준과 다르면 위 명령으로 비교하고, 맞출지는 직접 판단한다.
 - 처음부터 다시 하거나 중간 클립부터 시작하려면 그 클립의 시작 태그에서 새 브랜치를 만든다.
 
 ## 클립별 시작 상태 (태그)
 
 | 클립 | 태그 | 상태 |
 | --- | --- | --- |
-| 1-1 | `p3-ch1-start` | 요구사항 메모(docs/requirements), 계약서 템플릿, CLAUDE.md 최소본, .claude 설정, app/product-catalog. infra · gitops 없음. 답변 가이드: `course/1-1.md` |
-| 1-2 · 2-1 | `p3-ch1-end` | 1-1 끝: 기준 계약서. 내 계약서로 계속할지 기준으로 맞출지는 `course/1-2.md` |
+| 1-1 · 1-2 (시연) | `p3-ch1-start` | 요구사항 메모, 계약서 템플릿, CLAUDE.md 최소본, .claude 설정, app/product-catalog. infra · gitops 없음. 시연 메모: `course/1-1.md`, `course/1-2.md` |
+| 2-1 (실습 시작) | `p3-ch1-end` | Ch1 시연 결과: 계약서, 다듬은 CLAUDE.md 와 권한 설정 |
 | 2-2 | `p3-ch2-start` | infra/cluster 에 versions · backend · providers · github-oidc 만 |
 | 2-2 끝 | `p3-ch2-end` | infra 기준 코드 |
 | 그 외 | `main` (p3-end) | Part 3 완료 상태 |

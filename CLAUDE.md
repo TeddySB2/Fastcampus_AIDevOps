@@ -7,11 +7,10 @@
 - 작업 스펙은 이 규칙 안에서 쓴다. 규칙을 벗어나야 하는 결정은 스펙에 "예외" 로 표시하고 승인자를 적는다.
 - 이 파일을 바꿀 때는 PR 로 하고 CODEOWNERS 승인을 받는다.
 
-## 환경 사실 (추정하지 말고 이 값을 쓴다)
+## 환경 값 (이 파일에 적지 않는다)
 
-- 아직 정해지지 않았다. 계정 · 리전 · 클러스터 · 네임스페이스는 작업 스펙(specs/)에서 정한다.
-- 쇼핑몰 서비스: OpenTelemetry Demo 공식 Helm 차트 (버전은 스펙에서 고정)
-- 직접 빌드하는 서비스: app/product-catalog 하나뿐. 나머지는 차트 기본 이미지
+- 계정 · 리전 · 클러스터 · 네임스페이스 · 차트 버전 · 직접 빌드 대상은 현재 작업 스펙의 "환경" · "범위" 에만 둔다.
+- 스펙에 없는 값은 추정하지 말고 질문한다 (아래 규칙 5).
 
 ## 작업 스펙 (현재 작업의 목적 · 환경 · 범위 · 제약 · 완료 증거)
 
@@ -44,5 +43,5 @@
 
 - Terraform: `terraform fmt -check`, `terraform validate`, `checkov -d infra --config-file infra/.checkov.yaml`, `terraform plan` 요약
 - GitOps: YAML 파싱, `helm template` 렌더링, `kubeconform`
-- 배포: Argo CD 앱 Healthy + `tests/smoke.sh` 통과. Pod 가 Running 인 것만으로는 완료가 아니다
+- 배포: 현재 작업 스펙의 "완료 증거" 를 모두 통과한다. Pod 가 Running 인 것만으로는 완료가 아니다
 - 보고: 무엇을 바꿨는지, 어떤 검증을 통과했는지, 확인하지 못한 것이 무엇인지

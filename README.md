@@ -47,7 +47,7 @@ course/                   강의 진행용 자료 (Claude 는 읽지 않도록 d
 
 | 도구 | 용도 |
 | --- | --- |
-| Terraform ≥ 1.10, tflint, checkov | infra |
+| Terraform ≥ 1.10 (brew: hashicorp/tap/terraform), checkov | infra |
 | AWS CLI v2, kubectl, helm, kubeconform, yq v4 | 클러스터·렌더링 |
 | argocd CLI, gh CLI | GitOps·PR |
 | Claude Code, uv(uvx), Node.js(npx) | 에이전트·MCP |

@@ -51,6 +51,7 @@ course/                   강의 진행용 자료 (Claude 는 읽지 않도록 d
 | AWS CLI v2, kubectl, helm, kubeconform, yq v4 | 클러스터·렌더링 |
 | argocd CLI, gh CLI | GitOps·PR |
 | Claude Code, uv(uvx), Node.js(npx) | 에이전트·MCP |
+| Go ≥ 1.25, Podman, Trivy | product-catalog 빌드·테스트·이미지 스캔 (설치: `course/setup-tools.md`) |
 
 버전은 고정하고, 올릴 때는 단독 PR 로 한다.
 

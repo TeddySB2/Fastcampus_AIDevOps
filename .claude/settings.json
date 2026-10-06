@@ -35,9 +35,10 @@
       "Bash(go test:*)",
       "Bash(go build:*)",
       "Bash(go vet:*)",
-      "Bash(docker build:*)",
-      "Bash(docker images:*)",
-      "Bash(docker inspect:*)",
+      "Bash(podman build:*)",
+      "Bash(podman images:*)",
+      "Bash(podman inspect:*)",
+      "Bash(podman save:*)",
       "Bash(trivy image:*)",
       "mcp__argocd",
       "mcp__eks"

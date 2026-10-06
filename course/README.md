@@ -24,9 +24,9 @@ Claude 가 강의 맥락에 끌려가지 않도록 `.claude/settings.json` 에�
 | 클립 | 태그 | 상태 |
 | --- | --- | --- |
 | 1-1 · 1-2 (시연) | `p3-ch1-start` | 요구사항 메모, 스펙 템플릿, CLAUDE.md 최소본, .claude 설정, app/product-catalog. infra · gitops 없음. 시연 메모: `course/1-1.md`, `course/1-2.md` |
-| 2-1 (실습 시작) | `p3-ch1-end` | Ch1 시연 결과: 스펙, 다듬은 CLAUDE.md 와 권한 설정 |
-| 2-2 | `p3-ch2-start` | infra/cluster 에 versions · backend · providers · github-oidc 만 |
-| 2-2 끝 | `p3-ch2-end` | infra 기준 코드 |
+| 2-1 (실습 시작) | `p3-ch1-end` | Ch1 시연 결과: 스펙, 다듬은 CLAUDE.md 와 권한 설정. infra/cluster 뼈대(versions · backend · providers) 포함 |
+| 2-2 | `p3-ch2-start` | 2-1 과 같은 상태 (따로 가져올 것 없음) |
+| 2-2 끝 | `p3-ch2-end` | infra 기준 코드 (cluster · platform) |
 | 그 외 | `main` (p3-end) | Part 3 완료 상태 |
 
 ## 장면 재현

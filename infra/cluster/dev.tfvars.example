@@ -2,7 +2,10 @@
 environment = "dev"
 region      = "ap-northeast-2"
 
-# 본인 공인 IP/32 처럼 좁게 (curl -s https://checkip.amazonaws.com 로 확인). 0.0.0.0/0 은 넣지 않는다
+# 모든 리소스에 붙는 만료일 (생성 후 최대 7일, YYYY-MM-DD)
+expires = "2026-10-14"
+
+# 본인 공인 IP/32 (curl -s https://checkip.amazonaws.com 로 확인). /32 가 아니면 variables.tf 의 validation 에서 거부된다
 endpoint_public_access_cidrs = ["203.0.113.10/32"]
 
 # Claude Code 가 쓰는 읽기 전용 역할 (아직 없으면 [] 로 비워 둔다)

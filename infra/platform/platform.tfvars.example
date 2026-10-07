@@ -1,0 +1,3 @@
+region          = "ap-northeast-2"
+cluster_name    = "ai-devops-lab-dev"
+gitops_repo_url = "https://github.com/TeddySB2/Fastcampus_AIDevOps.git"

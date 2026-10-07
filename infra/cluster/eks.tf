@@ -16,6 +16,9 @@ module "eks" {
   enabled_log_types                      = ["api", "audit", "authenticator"]
   cloudwatch_log_group_retention_in_days = 7
 
+  # secrets 암호화 KMS 키: destroy 후 삭제 대기 기간을 최소(7일)로 (스펙 5장 "state 버킷만 남는다")
+  kms_key_deletion_window_in_days = 7
+
   vpc_id     = local.vpc_id
   subnet_ids = local.private_subnet_ids
 

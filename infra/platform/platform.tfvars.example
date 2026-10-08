@@ -1,3 +1,5 @@
 region          = "ap-northeast-2"
 cluster_name    = "ai-devops-lab-dev"
+# Argo CD 가 읽는 원격 저장소와 브랜치. fork 했다면 내 저장소, 브랜치는 실습 브랜치(part3)
 gitops_repo_url = "https://github.com/TeddySB2/Fastcampus_AIDevOps.git"
+gitops_revision = "part3"

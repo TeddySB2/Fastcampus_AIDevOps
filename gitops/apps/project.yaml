@@ -1,0 +1,28 @@
+# OTel Demo 전용 AppProject: 배포 대상 네임스페이스와 소스 저장소를 제한한다.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: otel-demo
+  namespace: argocd
+spec:
+  description: OpenTelemetry Demo (dev / prod)
+  # 저장소를 fork 했다면 아래 GitHub URL 을 내 저장소로 바꾼다
+  sourceRepos:
+    - https://open-telemetry.github.io/opentelemetry-helm-charts
+    - https://github.com/TeddySB2/Fastcampus_AIDevOps.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: otel-demo-dev
+    - server: https://kubernetes.default.svc
+      namespace: otel-demo-prod
+  # 차트의 서브차트(collector, prometheus 등)가 만드는 클러스터 범위 리소스
+  clusterResourceWhitelist:
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRole
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRoleBinding
+    - group: ""
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"

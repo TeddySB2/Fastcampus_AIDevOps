@@ -10,4 +10,8 @@
 #     imageOverride:
 #       repository: "<ACCOUNT>.dkr.ecr.ap-northeast-2.amazonaws.com/ai-devops-lab/product-catalog"
 #       tag: "<sha>@sha256:<digest>"
-components: {}
+components:
+  product-catalog:
+    imageOverride:
+      repository: "067620369479.dkr.ecr.ap-northeast-2.amazonaws.com/ai-devops-lab/product-catalog"
+      tag: "21bebaa964095756f150516da6c04910d23f8498@sha256:d5baede5ebd0fe4d93cc27540c4afc9daf55e62c13a99d28a64d7ce54bcb7717"

@@ -28,6 +28,7 @@ Claude 가 강의 맥락에 끌려가지 않도록 `.claude/settings.json` 에�
 | 2-2 | `p3-ch2-start` | 2-1 과 같은 상태 (따로 가져올 것 없음) |
 | 2-2 끝 · 2-3 준비 | `p3-ch2-end` | infra 기준 코드 (cluster · platform) + 2-3 준비 파일: Argo CD 설치(argocd.tf), gitops 바탕(AppProject · values · CLAUDE.md), scenarios, tests/smoke.sh |
 | 2-3 끝 | `p3-ch2-3-end` | 위 상태 + gitops/apps/otel-demo-dev.yaml. dev.yaml 의 이미지는 각자 ECR digest 로 바꾼다 |
+| 3-1 · 3-2 | `p3-ch3-start` | 2-3 끝 + 3-2 준비 파일: 장애 시나리오(scenarios/break-values.sh), deploy-triage 스킬 |
 | 그 외 | `main` (p3-end) | Part 3 완료 상태 |
 
 ### 2-3 준비 (같은 part3 브랜치에서)
@@ -39,6 +40,15 @@ git push -u origin part3        # Argo CD 는 GitHub 의 part3 를 읽는다
 ```
 
 배포 PR 은 base 를 `part3` 로 올린다 (기본값 main 으로 올리면 충돌이 난다).
+
+### 3-2 준비 (같은 part3 브랜치에서)
+
+```bash
+git restore --source p3-ch3-start -- scenarios .claude/skills
+git add scenarios .claude/skills && git commit -m "3-2 준비: 장애 시나리오 · deploy-triage 스킬"
+git push origin part3
+./scenarios/break-values.sh     # 사람이 직접 실행. PR 은 현재 브랜치(part3)로 올라간다
+```
 
 ## 장면 재현
 

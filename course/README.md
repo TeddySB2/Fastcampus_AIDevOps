@@ -26,14 +26,24 @@ Claude 가 강의 맥락에 끌려가지 않도록 `.claude/settings.json` 에�
 | 1-1 · 1-2 (시연) | `p3-ch1-start` | 요구사항 메모, 스펙 템플릿, CLAUDE.md 최소본, .claude 설정, app/product-catalog. infra · gitops 없음. 시연 메모: `course/1-1.md`, `course/1-2.md` |
 | 2-1 (실습 시작) | `p3-ch1-end` | Ch1 시연 결과: 스펙, 다듬은 CLAUDE.md 와 권한 설정. infra/cluster 뼈대(versions · backend · providers) 포함 |
 | 2-2 | `p3-ch2-start` | 2-1 과 같은 상태 (따로 가져올 것 없음) |
-| 2-2 끝 | `p3-ch2-end` | infra 기준 코드 (cluster · platform) |
+| 2-2 끝 · 2-3 준비 | `p3-ch2-end` | infra 기준 코드 (cluster · platform) + 2-3 준비 파일: Argo CD 설치(argocd.tf), gitops 바탕(AppProject · values · CLAUDE.md), scenarios, tests/smoke.sh |
+| 2-3 끝 | `p3-ch2-3-end` | 위 상태 + gitops/apps/otel-demo-dev.yaml. dev.yaml 의 이미지는 각자 ECR digest 로 바꾼다 |
 | 그 외 | `main` (p3-end) | Part 3 완료 상태 |
+
+### 2-3 준비 (같은 part3 브랜치에서)
+
+```bash
+git restore --source p3-ch2-end -- infra/platform gitops scenarios tests
+git add infra/platform gitops scenarios tests && git commit -m "2-3 준비: 플랫폼 · gitops 바탕"
+git push -u origin part3        # Argo CD 는 GitHub 의 part3 를 읽는다
+```
+
+배포 PR 은 base 를 `part3` 로 올린다 (기본값 main 으로 올리면 충돌이 난다).
 
 ## 장면 재현
 
 | 스크립트 | 장면 | 클립 |
 | --- | --- | --- |
-| `scenarios/flag.sh productCatalogFailure on` | Pod 는 Running 인데 Smoke 실패 | 2-3 |
 | `scenarios/flag.sh loadGeneratorFloodHomepage on` (또는 Locust UI `/loadgen/`) | 부하 증가 → HPA 확장 | 4-1 |
 | `scenarios/break-values.sh` | 잘못된 이미지 태그 → Degraded | 3-2 |
 | `scenarios/break-env.sh` | DB 설정 누락 → CrashLoopBackOff | 5-1 |

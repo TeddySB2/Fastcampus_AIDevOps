@@ -1,0 +1,32 @@
+# dev: Argo CD 가 추적하는 브랜치에 반영되면 자동으로 동기화된다 (스펙 2장 · 3장).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: otel-demo-dev
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: otel-demo
+  sources:
+    - repoURL: https://open-telemetry.github.io/opentelemetry-helm-charts
+      chart: opentelemetry-demo
+      targetRevision: 0.42.1 # 스펙 2장: 차트 버전 고정, 업그레이드는 단독 PR
+      helm:
+        releaseName: otel-demo
+        valueFiles: # 순서 = 덮어쓰기 순서 (dev 가 이긴다)
+          - $values/gitops/values/otel-demo/common.yaml
+          - $values/gitops/values/otel-demo/dev.yaml
+    - repoURL: https://github.com/TeddySB2/Fastcampus_AIDevOps.git
+      targetRevision: part3
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: otel-demo-dev
+  syncPolicy:
+    automated: # 스펙 2장: otel-demo-dev 는 자동 Sync
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

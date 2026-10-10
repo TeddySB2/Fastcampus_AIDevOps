@@ -1,0 +1,24 @@
+# frontend HPA (dev). 차트 0.42.1 에 HPA 템플릿이 없어 별도 매니페스트로 둔다.
+# 값 근거(2026-10-10 측정): frontend CPU 31~46m / request 100m, load-generator 5 users.
+# - 목표 70%: 평소 1개 유지, 현재 부하의 약 1.5~2배에서 늘어난다
+# - max 4: 노드 2대(오토스케일링 없음) 여유 안에서 현재 부하의 약 6~9배까지
+# replicas 는 HPA 가 관리한다. otel-demo-dev Application 의 ignoreDifferences 와 함께 쓴다.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: frontend
+  namespace: otel-demo-dev
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: frontend
+  minReplicas: 1
+  maxReplicas: 4
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70

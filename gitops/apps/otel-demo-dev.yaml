@@ -24,6 +24,10 @@ spec:
     - repoURL: https://github.com/TeddySB2/Fastcampus_AIDevOps.git
       targetRevision: part3  # infra/platform 의 gitops_revision 과 같게
       ref: values
+    # 차트에 없는 앱 리소스(HPA 등)
+    - repoURL: https://github.com/TeddySB2/Fastcampus_AIDevOps.git
+      targetRevision: part3  # 위 values 소스와 같게
+      path: gitops/manifests/otel-demo
   destination:
     server: https://kubernetes.default.svc
     namespace: otel-demo-dev
@@ -34,3 +38,11 @@ spec:
     syncOptions:
       - CreateNamespace=true  # project.yaml 이 Namespace 생성을 허용
       - ServerSideApply=true  # 큰 ConfigMap 의 last-applied annotation 한도 회피
+      - RespectIgnoreDifferences=true  # Sync 때도 아래 replicas 를 덮어쓰지 않는다
+  # HPA 가 관리하는 replicas 는 Git(차트의 replicas: 1)과 비교하지 않는다
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      name: frontend
+      jsonPointers:
+        - /spec/replicas

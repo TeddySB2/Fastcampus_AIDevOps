@@ -11,7 +11,7 @@ need git; need gh; need yq
 
 open_pr() { # branch
   local branch=$1
-  git -C "$ROOT" checkout -q "$BASE" && git -C "$ROOT" pull -q --ff-only
+  git -C "$ROOT" checkout -q "$BASE" && git -C "$ROOT" pull -q --ff-only origin "$BASE"
   git -C "$ROOT" checkout -q -B "$branch"
 }
 

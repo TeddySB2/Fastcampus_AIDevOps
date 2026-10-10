@@ -1,0 +1,29 @@
+# frontend HPA: 차트(0.42.1)에 HPA 템플릿이 없어 별도 매니페스트로 둔다.
+# - CPU 사용률은 requests(common.yaml 의 frontend cpu 100m) 기준이다.
+# - 차트가 Deployment 에 replicas 를 항상 렌더링하므로, Application 에서
+#   /spec/replicas 를 ignoreDifferences 로 빼야 selfHeal 이 HPA 와 다투지 않는다.
+# - namespace 는 적지 않는다. Application 의 destination 을 따른다.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: frontend
+  labels:
+    app.kubernetes.io/name: frontend
+    app.kubernetes.io/part-of: opentelemetry-demo
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: frontend
+  minReplicas: 1
+  maxReplicas: 4
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 120  # 기본 300s 보다 빨리 줄인다

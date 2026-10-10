@@ -24,3 +24,6 @@ spec:
         target:
           type: Utilization
           averageUtilization: 70
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 120  # 기본 300s 보다 빨리 줄인다

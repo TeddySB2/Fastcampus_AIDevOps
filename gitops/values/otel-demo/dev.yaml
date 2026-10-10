@@ -14,4 +14,4 @@ components:
   product-catalog:
     imageOverride:
       repository: "067620369479.dkr.ecr.ap-northeast-2.amazonaws.com/ai-devops-lab/product-catalog"
-      tag: "85499ca@sha256:26653692d6b490c04bd23f6c606249da4a785936b6c822e071891765a0aa6d08"
+      tag: "does-not-exist"

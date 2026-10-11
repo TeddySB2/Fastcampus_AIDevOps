@@ -16,7 +16,8 @@ if [[ "${1:-}" == "--list" || $# -lt 2 ]]; then
   echo "$current" | python3 -c '
 import json,sys
 for k,v in json.load(sys.stdin)["flags"].items():
-    print(f"{k:32} default={v.get(\"defaultVariant\")!s:10} variants={list(v.get(\"variants\",{}).keys())}")'
+    dv=str(v.get("defaultVariant")); vs=list(v.get("variants",{}).keys())
+    print(f"{k:32} default={dv:10} variants={vs}")'
   exit 0
 fi
 
@@ -26,7 +27,8 @@ import json,sys
 name,variant=sys.argv[1],sys.argv[2]
 d=json.load(sys.stdin)
 f=d["flags"].get(name) or sys.exit(f"unknown flag: {name}")
-if variant not in f.get("variants",{}): sys.exit(f"unknown variant {variant}; choose from {list(f[\"variants\"])}")
+vs=list(f.get("variants",{}))
+if variant not in vs: sys.exit(f"unknown variant {variant}; choose from {vs}")
 f["defaultVariant"]=variant
 # targeting 이 있으면 defaultVariant 보다 우선한다. 차트 0.42.1 의 productCatalogFailure 는
 # {"if":[product_id == OLJCESPC7Z, "off", "off"]} 라서 조건이 맞는 쪽 결과도 같이 바꿔야 실제로 실패한다.

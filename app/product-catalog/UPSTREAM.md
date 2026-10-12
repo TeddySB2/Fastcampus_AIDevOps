@@ -8,6 +8,9 @@
 
 변경 사항
 - `Dockerfile`: 빌드 컨텍스트를 이 디렉터리로 바꾸면서 COPY 경로만 수정
+- 보안 수정 (CI Trivy HIGH: CVE-2026-78667, CVE-2026-78669, CVE-2026-97031)
+  - `Dockerfile`: 빌더 `golang:1.27.1` → `1.27.2`, `grpc-health-probe` `v0.4.57` → `v0.4.59` (digest 고정)
+  - `go.mod`: `golang.org/x/net` v0.58.0 → v0.60.0 (이에 따라 `go` 1.25.0 → 1.26.0, x/sys · x/text · x/mod 동반 상향)
 
 로컬 확인
 ```bash

@@ -47,6 +47,11 @@ module "eks" {
   eks_managed_node_groups = {
     default = {
       ami_type       = "AL2023_x86_64_STANDARD"
+
+      # 노드 이미지는 Terraform 이 따라가지 않는다 (만든 시점 이미지를 유지).
+      # 최신을 따라가면 AWS 가 새 이미지를 낼 때마다 plan 에 노드 교체가 섞인다. 올릴 때는 단독 PR 로
+      use_latest_ami_release_version = false
+
       instance_types = var.node_instance_types
       capacity_type  = "ON_DEMAND"
 

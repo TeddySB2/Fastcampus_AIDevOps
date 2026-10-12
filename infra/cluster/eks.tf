@@ -27,14 +27,14 @@ module "eks" {
   addons = {
     vpc-cni = {
       before_compute = true
-      addon_version  = "v1.23.2-eksbuild.1"
+      addon_version  = "v1.22.4-eksbuild.3"
     }
     eks-pod-identity-agent = {
       before_compute = true
-      addon_version  = "v1.4.0-eksbuild.3"
+      addon_version  = "v1.3.10-eksbuild.3"
     }
     coredns = {
-      addon_version = "v1.14.7-eksbuild.10"
+      addon_version = "v1.14.6-eksbuild.4"
     }
     kube-proxy = {
       addon_version = "v1.36.0-eksbuild.25"
@@ -46,9 +46,12 @@ module "eks" {
 
   eks_managed_node_groups = {
     default = {
-      ami_type       = "AL2023_x86_64_STANDARD"
-      instance_types = var.node_instance_types
-      capacity_type  = "ON_DEMAND"
+      ami_type = "AL2023_x86_64_STANDARD"
+      # 노드 이미지도 고정한다. 기본값(최신 따라가기)이면 AWS 가 새 이미지를 낼 때마다 plan 에 노드 교체가 섞인다
+      use_latest_ami_release_version = false
+      ami_release_version            = "1.36.4-20260930"
+      instance_types                 = var.node_instance_types
+      capacity_type                  = "ON_DEMAND"
 
       min_size     = var.node_min_size
       desired_size = var.node_desired_size

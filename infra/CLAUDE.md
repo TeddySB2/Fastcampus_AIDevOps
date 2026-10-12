@@ -2,6 +2,7 @@
 
 - 루트는 두 개다: `cluster`(VPC·EKS·ECR·IAM) → `platform`(Argo CD). 순서대로 적용한다.
 - provider·모듈 버전은 고정한다. 버전을 올리는 변경은 단독 PR 로 만든다.
+- EKS 애드온은 버전을 고정하고, 노드 그룹은 최신 이미지를 따라가지 않는다 (`use_latest_ami_release_version = false`). 노드 이미지를 올리는 것도 단독 PR 로 한다.
 - 새 리소스에는 공통 태그(default_tags)가 붙는지 확인한다.
 - 정책 예외는 `infra/.checkov.yaml` 에 근거와 함께만 추가한다. 근거 없는 skip 은 금지.
 - 0.0.0.0/0 인바운드, `*` IAM Action/Resource(ECR 로그인 제외)는 만들지 않는다.

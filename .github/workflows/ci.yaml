@@ -1,9 +1,19 @@
 # PR 마다 product-catalog 를 테스트 → 이미지 빌드(push 안 함) → Trivy 스캔 → SBOM 순서로 검사한다.
-# 클라우드 자격 증명을 받지 않고, 클러스터에 배포하지 않는다 (.github/CLAUDE.md).
+# 배포 브랜치에 머지되면 같은 검사 후, 스캔한 이미지를 ECR 에 push 하고 dev 배포 PR 을 연다 (publish).
+# 클라우드 자격 증명은 publish job 만 받고, 클러스터에 배포하지 않는다 (.github/CLAUDE.md).
 name: CI
 
 on:
   pull_request:
+    paths:
+      - app/product-catalog/**
+      - .github/workflows/ci.yaml
+      - .trivyignore
+  push:
+    # 배포 브랜치: infra/platform 의 gitops_revision, infra/cluster 의 github_deploy_branch 와 같게 둔다
+    branches:
+      - part3
+    # 배포 PR 은 gitops/ 만 바꾸므로 여기에 걸리지 않는다 (루프 없음)
     paths:
       - app/product-catalog/**
       - .github/workflows/ci.yaml
@@ -13,12 +23,13 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  # publish 가 push 와 PR 생성 사이에서 끊기지 않도록 push 실행은 취소하지 않는다
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   APP_DIR: app/product-catalog
-  IMAGE: product-catalog:${{ github.event.pull_request.head.sha }}
+  IMAGE: product-catalog:${{ github.event.pull_request.head.sha || github.sha }}
 
 jobs:
   test:
@@ -86,6 +97,142 @@ jobs:
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: sbom-product-catalog-${{ github.event.pull_request.head.sha }}
+          name: sbom-product-catalog-${{ github.event.pull_request.head.sha || github.sha }}
           path: sbom.spdx.json
           if-no-files-found: error
+
+      # publish 가 다시 빌드하지 않고 스캔한 이미지를 그대로 push 하도록 넘긴다
+      - name: Save scanned image
+        if: ${{ github.event_name == 'push' }}
+        run: docker save "$IMAGE" -o image.tar
+
+      - name: Upload scanned image
+        if: ${{ github.event_name == 'push' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: image-product-catalog-${{ github.sha }}
+          path: image.tar
+          retention-days: 1
+          if-no-files-found: error
+
+  # 배포 브랜치에서만: ECR push → dev values 의 tag 갱신 PR. 머지 후 Argo CD 가 dev 를 자동 Sync 한다.
+  # environment 를 쓰지 않는다: OIDC sub 가 바뀌어 역할 신뢰 조건(ref:refs/heads/<배포 브랜치>)과 맞지 않게 된다.
+  publish:
+    needs: [test, build-scan-sbom]
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/part3' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write       # 배포 브랜치(deploy/*) push
+      pull-requests: write  # 배포 PR 생성
+      id-token: write       # AWS OIDC
+    env:
+      VALUES_FILE: gitops/values/otel-demo/dev.yaml
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_CI_ROLE_ARN }}
+          aws-region: ap-northeast-2
+
+      - uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd # v2.1.7
+
+      - name: Resolve image
+        id: image
+        run: |
+          # repository 는 Terraform 출력 ecr_repository_url 이 이미 들어간 dev values 를 그대로 쓴다
+          repository=$(yq -e '.components."product-catalog".imageOverride.repository' "$VALUES_FILE")
+          echo "repository=$repository" >> "$GITHUB_OUTPUT"
+          echo "repo_name=${repository#*/}" >> "$GITHUB_OUTPUT"
+          echo "tag=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      # ECR 태그는 불변이다. 재실행 등으로 이미 있으면 push 하지 않고 그 digest 를 쓴다.
+      - name: Check existing tag
+        id: existing
+        env:
+          REPO_NAME: ${{ steps.image.outputs.repo_name }}
+          TAG: ${{ steps.image.outputs.tag }}
+        run: |
+          # 없을 때(ImageNotFoundException)만 push 로 넘어가고, 권한 오류 등은 실패시킨다
+          if out=$(aws ecr describe-images --repository-name "$REPO_NAME" --image-ids imageTag="$TAG" 2>&1); then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          elif grep -q ImageNotFoundException <<<"$out"; then
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "$out"; exit 1
+          fi
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: ${{ steps.existing.outputs.found == 'false' }}
+        with:
+          name: image-product-catalog-${{ github.sha }}
+
+      - name: Push scanned image
+        if: ${{ steps.existing.outputs.found == 'false' }}
+        env:
+          TARGET: ${{ steps.image.outputs.repository }}:${{ steps.image.outputs.tag }}
+        run: |
+          docker load -i image.tar
+          docker tag "$IMAGE" "$TARGET"
+          docker push "$TARGET"
+
+      # 스펙 5장 완료 증거와 같은 출처(aws ecr describe-images 의 imageDigest)
+      - name: Get digest
+        id: digest
+        env:
+          REPO_NAME: ${{ steps.image.outputs.repo_name }}
+          TAG: ${{ steps.image.outputs.tag }}
+        run: |
+          digest=$(aws ecr describe-images --repository-name "$REPO_NAME" --image-ids imageTag="$TAG" \
+            --query 'imageDetails[0].imageDigest' --output text)
+          [[ "$digest" == sha256:* ]] || { echo "unexpected digest: $digest"; exit 1; }
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+
+      - name: Open dev deploy PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE: ${{ github.ref_name }}
+          TAG: ${{ steps.image.outputs.tag }}
+          DIGEST: ${{ steps.digest.outputs.digest }}
+          REPOSITORY: ${{ steps.image.outputs.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          NEW_TAG="${TAG}@${DIGEST}" yq -i '.components."product-catalog".imageOverride.tag = strenv(NEW_TAG)' "$VALUES_FILE"
+          if git diff --quiet -- "$VALUES_FILE"; then
+            echo "dev 가 이미 ${TAG}@${DIGEST} 를 쓴다. PR 을 만들지 않는다."
+            exit 0
+          fi
+
+          branch="deploy/product-catalog-${TAG}"
+          if [[ -n "$(gh pr list --head "$branch" --state open --json number --jq '.[].number')" ]]; then
+            echo "열린 배포 PR 이 이미 있다: $branch"
+            exit 0
+          fi
+
+          short_digest="${DIGEST#sha256:}"
+          title="gitops(dev): product-catalog 를 ECR 이미지(${TAG}@sha256:${short_digest:0:8})로 배포"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git add "$VALUES_FILE"
+          git commit -m "$title" -m "원 커밋: ${GITHUB_SHA}" -m "워크플로: ${RUN_URL}"
+          git push --force origin "$branch"
+
+          cat > pr-body.md <<BODY
+          ## 변경
+          - \`${VALUES_FILE}\` 의 product-catalog 이미지를 갱신한다.
+          - 이미지: \`${REPOSITORY}:${TAG}\`
+          - digest: \`${DIGEST}\`
+          - 원 커밋: ${GITHUB_SHA}
+          - 빌드 · 스캔 · push: ${RUN_URL}
+
+          ## 머지 후 확인 (specs/eks-demo.md 5장)
+          - \`argocd app get otel-demo-dev\` → Synced / Healthy
+          - \`kubectl get pod -n otel-demo-dev -o jsonpath='{..imageID}'\` 의 product-catalog digest = \`${DIGEST}\`
+          - \`tests/smoke.sh\` 통과
+
+          ## 되돌리기
+          이 PR 의 revert PR 을 머지하면 이전 이미지로 돌아간다 (Argo CD 자동 Sync).
+          BODY
+          gh pr create --base "$BASE" --head "$branch" --title "$title" --body-file pr-body.md

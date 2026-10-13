@@ -334,10 +334,11 @@ func parseProductRow(id, name, description, picture, currencyCode, categoriesStr
 	// Parse comma-delimited categories string into slice
 	var categories []string
 	if categoriesStr != "" {
-		categories = strings.Split(categoriesStr, ",")
-		// Trim whitespace from each category
-		for i, cat := range categories {
-			categories[i] = strings.TrimSpace(cat)
+		// Trim whitespace from each category and drop empty items (e.g. "a,,b")
+		for _, cat := range strings.Split(categoriesStr, ",") {
+			if c := strings.TrimSpace(cat); c != "" {
+				categories = append(categories, c)
+			}
 		}
 	}
 

@@ -14,6 +14,8 @@ data "aws_iam_openid_connect_provider" "github" {
 }
 
 locals {
+  github_owner             = split("/", var.github_repository)[0]
+  github_repo              = split("/", var.github_repository)[1]
   github_oidc_provider_arn = var.create_github_oidc_provider ? aws_iam_openid_connect_provider.github[0].arn : data.aws_iam_openid_connect_provider.github[0].arn
 }
 
@@ -32,10 +34,18 @@ data "aws_iam_policy_document" "github_ci_assume" {
       values   = ["sts.amazonaws.com"]
     }
 
+    # GitHub 는 2026-07-15 이후 만들거나 이름을 바꾼 저장소(fork 포함)의 sub 에 owner·repo ID 를 붙인다.
+    #   예전 형식: repo:OWNER/REPO:ref:refs/heads/BRANCH
+    #   새 형식:   repo:OWNER@OWNER_ID/REPO@REPO_ID:ref:refs/heads/BRANCH
+    # 두 형식을 모두 받는다. ID 까지 고정하려면 gh api repos/OWNER/REPO/actions/oidc/customization/sub 의
+    # sub_claim_prefix 값을 그대로 적는다.
     condition {
-      test     = "StringEquals"
+      test     = "StringLike"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.github_repository}:ref:refs/heads/${var.github_deploy_branch}"]
+      values = [
+        "repo:${var.github_repository}:ref:refs/heads/${var.github_deploy_branch}",
+        "repo:${local.github_owner}@*/${local.github_repo}@*:ref:refs/heads/${var.github_deploy_branch}",
+      ]
     }
   }
 }

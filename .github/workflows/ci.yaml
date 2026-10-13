@@ -1,5 +1,11 @@
-# PR 마다 product-catalog 를 테스트 → 이미지 빌드(push 안 함) → Trivy 스캔 → SBOM 순서로 검사한다.
-# 클라우드 자격 증명을 받지 않고, 클러스터에 배포하지 않는다 (.github/CLAUDE.md).
+# product-catalog 를 테스트 → 이미지 빌드 → Trivy 스캔 → SBOM 순서로 검사한다 (.github/CLAUDE.md).
+# - PR: 검사만 한다. push 하지 않고 클라우드 자격 증명을 받지 않는다.
+# - 배포 브랜치(part3) push: 검사 통과 후 publish job 이 ECR 에 push 하고 dev values 를 digest 로 바꾸는 PR 을 만든다.
+#   클러스터에는 직접 배포하지 않는다. PR 머지 후 Argo CD 가 동기화한다.
+#
+# 저장소 설정 (사람이 넣는다)
+#   Variables: AWS_CI_ROLE_ARN (infra/cluster 출력 github_ci_role_arn)
+#   Settings → Actions → General: "Allow GitHub Actions to create and approve pull requests"
 name: CI
 
 on:
@@ -8,17 +14,29 @@ on:
       - app/product-catalog/**
       - .github/workflows/ci.yaml
       - .trivyignore
+  # 배포 브랜치 = infra/platform 의 gitops_revision, infra/cluster 의 github_deploy_branch. 바꾸면 publish job 의 if 도 같이 바꾼다.
+  push:
+    branches: [part3]
+    paths:
+      - app/product-catalog/**
+      - .github/workflows/ci.yaml
+      - .trivyignore
 
 permissions:
   contents: read
 
+# PR 은 새 커밋이 오면 이전 실행을 취소한다. 배포 브랜치 실행은 push 도중 끊지 않는다.
 concurrency:
-  group: ci-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   APP_DIR: app/product-catalog
-  IMAGE: product-catalog:${{ github.event.pull_request.head.sha }}
+  GIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+  IMAGE: product-catalog:${{ github.event.pull_request.head.sha || github.sha }}
+  AWS_REGION: ap-northeast-2
+  ECR_REPOSITORY: ai-devops-lab/product-catalog
+  DEV_VALUES: gitops/values/otel-demo/dev.yaml
 
 jobs:
   test:
@@ -86,6 +104,150 @@ jobs:
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: sbom-product-catalog-${{ github.event.pull_request.head.sha }}
+          name: sbom-product-catalog-${{ env.GIT_SHA }}
           path: sbom.spdx.json
           if-no-files-found: error
+
+  # 배포 브랜치에 머지된 코드만 ECR 에 올린다. OIDC 역할도 이 브랜치의 토큰만 받는다 (infra/cluster/github-oidc.tf).
+  publish:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/part3'
+    needs: build-scan-sbom
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # deploy/* 브랜치 push
+      pull-requests: write # 배포 PR 생성
+      id-token: write # AWS OIDC
+    steps:
+      # 배포 PR 브랜치를 push 해야 하므로 이 job 만 기본 credential 을 남긴다.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_CI_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: ECR login
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd # v2.1.7
+
+      # 태그는 7자리 git sha (기존 dev.yaml · deploy/product-catalog-<sha> 브랜치와 같은 형식).
+      # ECR 은 태그 불변이라 재실행 때 같은 태그가 이미 있으면 push 를 건너뛰고 그 이미지를 쓴다.
+      - name: Check existing tag
+        id: meta
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+        run: |
+          tag="${GIT_SHA:0:7}"
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          echo "repository=${REGISTRY}/${ECR_REPOSITORY}" >> "$GITHUB_OUTPUT"
+          if aws ecr describe-images --repository-name "$ECR_REPOSITORY" --image-ids "imageTag=${tag}" > /dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::${tag} 은 이미 ECR 에 있다. push 를 건너뛴다."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.meta.outputs.exists == 'false'
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Build image
+        if: steps.meta.outputs.exists == 'false'
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ${{ env.APP_DIR }}
+          push: false
+          load: true
+          tags: ${{ steps.meta.outputs.repository }}:${{ steps.meta.outputs.tag }}
+
+      # 스캔한 이미지를 그대로 push 한다 (스캔한 것 = 배포되는 것).
+      - name: Trivy scan (CRITICAL/HIGH, fixed only)
+        if: steps.meta.outputs.exists == 'false'
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: image
+          image-ref: ${{ steps.meta.outputs.repository }}:${{ steps.meta.outputs.tag }}
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+          trivyignores: .trivyignore
+
+      - name: Push to ECR
+        if: steps.meta.outputs.exists == 'false'
+        env:
+          IMAGE_REF: ${{ steps.meta.outputs.repository }}:${{ steps.meta.outputs.tag }}
+        run: docker push "$IMAGE_REF"
+
+      # digest 는 ECR 에서 읽는다. 스펙 5장 완료 증거(ECR imageDigest = Pod imageID)와 같은 출처.
+      - name: Read digest from ECR
+        id: digest
+        env:
+          TAG: ${{ steps.meta.outputs.tag }}
+        run: |
+          digest=$(aws ecr describe-images --repository-name "$ECR_REPOSITORY" --image-ids "imageTag=${TAG}" \
+            --query 'imageDetails[0].imageDigest' --output text)
+          [[ "$digest" == sha256:* ]] || { echo "::error::digest 를 읽지 못했다: ${digest}"; exit 1; }
+          echo "digest=${digest}" >> "$GITHUB_OUTPUT"
+
+      - name: Update dev values
+        id: values
+        env:
+          REPO: ${{ steps.meta.outputs.repository }}
+          TAG: ${{ steps.meta.outputs.tag }}@${{ steps.digest.outputs.digest }}
+        run: |
+          yq -i '.components."product-catalog".imageOverride.repository = strenv(REPO)' "$DEV_VALUES"
+          yq -i '.components."product-catalog".imageOverride.tag = strenv(TAG)' "$DEV_VALUES"
+          if git diff --quiet -- "$DEV_VALUES"; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::dev values 가 이미 이 이미지를 가리킨다. PR 을 만들지 않는다."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            git diff -- "$DEV_VALUES"
+          fi
+
+      # 자동 머지하지 않는다. 사람이 리뷰하고 머지하면 Argo CD 가 otel-demo-dev 를 동기화한다.
+      - name: Open dev deploy PR
+        if: steps.values.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE: ${{ github.ref_name }}
+          TAG: ${{ steps.meta.outputs.tag }}
+          REPO: ${{ steps.meta.outputs.repository }}
+          DIGEST: ${{ steps.digest.outputs.digest }}
+          COMMIT_URL: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          branch="deploy/product-catalog-${TAG}"
+          if [[ -n "$(gh pr list --head "$branch" --state open --json number --jq '.[].number')" ]]; then
+            echo "::notice::${branch} PR 이 이미 열려 있다."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git add "$DEV_VALUES"
+          git commit -m "deploy(dev): product-catalog ${TAG}"
+          git push --force-with-lease origin "$branch"
+
+          cat > pr-body.md <<EOF
+          CI 가 만든 dev 배포 PR 이다. 머지하면 Argo CD 가 \`otel-demo-dev\` 를 자동 동기화한다.
+
+          ## 변경
+          - \`${DEV_VALUES}\` 의 product-catalog 이미지
+          - 이미지: \`${REPO}:${TAG}\`
+          - digest: \`${DIGEST}\`
+          - 원 커밋: ${COMMIT_URL}
+          - 워크플로 실행 (테스트 · Trivy 스캔 로그): ${RUN_URL}
+
+          ## 머지 후 확인 (스펙 5장)
+          - [ ] \`argocd app get otel-demo-dev\` → Synced / Healthy
+          - [ ] \`kubectl get pod -n otel-demo-dev -o jsonpath='{..imageID}'\` 에 product-catalog 의 digest = \`${DIGEST}\`
+          - [ ] \`tests/smoke.sh\` 통과
+
+          ## 되돌리기
+          이 PR 을 revert 하는 PR 을 머지한다 (이전 digest 로 돌아간다).
+          EOF
+
+          gh pr create --base "$BASE" --head "$branch" \
+            --title "deploy(dev): product-catalog ${TAG}" \
+            --body-file pr-body.md

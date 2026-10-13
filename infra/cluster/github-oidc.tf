@@ -1,5 +1,5 @@
 # GitHub Actions 가 장기 액세스 키 없이 ECR 에 push 하기 위한 OIDC 신뢰 관계.
-# main 브랜치의 워크플로만 이 역할을 맡을 수 있다 (PR 에서는 빌드·스캔만).
+# 배포 브랜치(var.github_deploy_branch, Argo CD 가 읽는 브랜치)의 워크플로만 이 역할을 맡을 수 있다 (PR 에서는 빌드·스캔만).
 
 resource "aws_iam_openid_connect_provider" "github" {
   count = var.create_github_oidc_provider ? 1 : 0
@@ -35,7 +35,7 @@ data "aws_iam_policy_document" "github_ci_assume" {
     condition {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.github_repository}:ref:refs/heads/main"]
+      values   = ["repo:${var.github_repository}:ref:refs/heads/${var.github_deploy_branch}"]
     }
   }
 }

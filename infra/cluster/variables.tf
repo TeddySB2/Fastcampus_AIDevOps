@@ -134,6 +134,12 @@ variable "github_repository" {
   type        = string
 }
 
+variable "github_deploy_branch" {
+  description = "ECR push 역할을 맡을 수 있는 브랜치. Argo CD 가 읽는 브랜치(platform 의 gitops_revision)와 같게 둔다"
+  type        = string
+  default     = "part3"
+}
+
 variable "create_github_oidc_provider" {
   description = "계정에 GitHub OIDC provider 가 이미 있으면 false"
   type        = bool

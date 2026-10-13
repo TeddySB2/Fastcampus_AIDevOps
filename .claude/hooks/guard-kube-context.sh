@@ -13,7 +13,8 @@ grep -Eq '(^|[;&| ])(kubectl|helm|argocd)( |$)' <<<"$cmd" || exit 0
 write_re='(kubectl|helm|argocd)[^;&|]*( apply| create| edit| patch| delete| scale| set | label| annotate| drain| cordon| rollout (restart|undo)| install| upgrade| uninstall| rollback| app (sync|set|delete|rollback))'
 if grep -Eq "$write_re" <<<"$cmd"; then
   ctx=$(kubectl config current-context 2>/dev/null || echo unknown)
-  if grep -Eqi 'prod' <<<"$ctx $cmd"; then
+  # product-catalog 같은 이름에 걸리지 않게 prod / production 을 단어 단위로만 본다
+  if grep -Eqi '(^|[^[:alnum:]])prod(uction)?([^[:alnum:]]|$)' <<<"$ctx $cmd"; then
     echo "BLOCKED: prod 컨텍스트/네임스페이스에 대한 쓰기 명령입니다 (context=$ctx). 변경은 PR 로 제안하세요." >&2
     exit 2
   fi

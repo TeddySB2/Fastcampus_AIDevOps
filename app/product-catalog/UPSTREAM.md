@@ -13,5 +13,5 @@
 ```bash
 cd app/product-catalog
 go test ./...
-docker build -t product-catalog:local .
+podman build --platform linux/amd64 -t product-catalog:local .   # 노드(m6i)는 amd64
 ```

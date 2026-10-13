@@ -43,6 +43,7 @@ Claude 가 강의 맥락에 끌려가지 않도록 `.claude/settings.json` 에�
 | 4-1 · 4-2 | `p3-ch4-start` | 3-2 끝 상태 (HPA 없음) |
 | 5-1 ~ 5-3 | `p3-ch5-start` | 4-1 결과(frontend HPA) + 장애 시나리오(break-env · break-oom) |
 | 6-1 | `p3-ch6-start` | 5장 끝 상태 + CI 규칙(.github/CLAUDE.md), OIDC 신뢰 브랜치 변수화 |
+| 6-3 | `p3-ch6-3-start` | 6-2 끝 상태 + 승격 워크플로(promote.yml), prod 앱(otel-demo-prod, 수동 Sync), prod.yaml 정리. `git restore --source p3-ch6-3-start -- .github gitops` 로 가져온 뒤 PR 로 merge. GitHub Environment `prod` 는 각자 Settings 에서 만든다 |
 | 완성본 | `part3` (원본 저장소) | Part 3 완료 상태 |
 
 ## 장면 재현

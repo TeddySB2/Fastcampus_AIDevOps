@@ -3,11 +3,16 @@
 쇼핑몰 서비스의 dev 환경을 AWS EKS 에 GitOps 로 구축·운영하는 플랫폼팀 저장소.
 쇼핑몰 서비스로는 OpenTelemetry Demo(Astronomy Shop)를 쓴다. Claude Code 와 함께 작업하되, 판정은 도구가 하고 승인은 사람이 한다.
 
-> **강의 수강생:** `main` 은 Part 3 완성본이다. 클론한 뒤 클립의 시작 태그에서 작업 브랜치를 만들어 시작한다.
+> **강의 수강생:** 기본 브랜치 `part3` 는 Part 3 완성본이다. 아래처럼 **내 fork 의 `part3` 를 시작 상태로 되돌린 뒤** 영상을 따라간다.
 >
 > ```bash
-> git clone https://github.com/TeddySB2/Fastcampus_AIDevOps.git && cd Fastcampus_AIDevOps
-> git switch -c ch1 p3-ch1-start
+> # 0. GitHub 에서 이 저장소를 Fork 한다
+> git clone https://github.com/<내계정>/Fastcampus_AIDevOps.git && cd Fastcampus_AIDevOps
+> git fetch https://github.com/TeddySB2/Fastcampus_AIDevOps.git 'refs/tags/p3-*:refs/tags/p3-*'   # 태그는 fork 에 없어서 원본에서 받는다
+> gh repo set-default <내계정>/Fastcampus_AIDevOps                                            # PR 이 원본이 아니라 내 fork 로 가게
+> git switch -C part3 p3-ch1-end && git push -f origin part3                                    # 내 fork 의 part3 = 2-1 시작 상태
+> ./scripts/init-repo.sh <내계정>                                                               # 저장소 주소를 내 fork 로
+> git commit -am "chore: 저장소 주소를 내 fork 로" && git push origin part3
 > ```
 >
 > 클립별 태그와 진행 순서는 [course/README.md](course/README.md) 에 있다.

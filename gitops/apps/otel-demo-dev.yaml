@@ -1,9 +1,12 @@
-# dev: Argo CD 가 추적하는 브랜치에 반영되면 자동으로 동기화된다 (스펙 2장 · 3장).
+# OTel Demo dev: gitops_revision 브랜치에 반영되면 자동 동기화한다.
+# 차트는 공식 Helm 저장소(버전 고정), values 는 이 저장소($values)에서 읽는다.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: otel-demo-dev
   namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"  # AppProject(wave 0) 다음
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
@@ -11,22 +14,35 @@ spec:
   sources:
     - repoURL: https://open-telemetry.github.io/opentelemetry-helm-charts
       chart: opentelemetry-demo
-      targetRevision: 0.42.1 # 스펙 2장: 차트 버전 고정, 업그레이드는 단독 PR
+      targetRevision: 0.42.1
       helm:
         releaseName: otel-demo
-        valueFiles: # 순서 = 덮어쓰기 순서 (dev 가 이긴다)
+        valueFiles:
           - $values/gitops/values/otel-demo/common.yaml
           - $values/gitops/values/otel-demo/dev.yaml
+    # 저장소를 fork 했다면 project.yaml 의 sourceRepos 와 함께 바꾼다
     - repoURL: https://github.com/TeddySB2/Fastcampus_AIDevOps.git
-      targetRevision: part3
+      targetRevision: part3  # infra/platform 의 gitops_revision 과 같게
       ref: values
+    # 차트에 없는 앱 리소스(HPA 등)
+    - repoURL: https://github.com/TeddySB2/Fastcampus_AIDevOps.git
+      targetRevision: part3  # 위 values 소스와 같게
+      path: gitops/manifests/otel-demo
   destination:
     server: https://kubernetes.default.svc
     namespace: otel-demo-dev
   syncPolicy:
-    automated: # 스펙 2장: otel-demo-dev 는 자동 Sync
+    automated:
       prune: true
       selfHeal: true
     syncOptions:
-      - CreateNamespace=true
-      - ServerSideApply=true
+      - CreateNamespace=true  # project.yaml 이 Namespace 생성을 허용
+      - ServerSideApply=true  # 큰 ConfigMap 의 last-applied annotation 한도 회피
+      - RespectIgnoreDifferences=true  # Sync 때도 아래 replicas 를 덮어쓰지 않는다
+  # HPA 가 관리하는 replicas 는 Git(차트의 replicas: 1)과 비교하지 않는다
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      name: frontend
+      jsonPointers:
+        - /spec/replicas

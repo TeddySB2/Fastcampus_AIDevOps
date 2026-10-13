@@ -14,12 +14,15 @@ description: 배포 직후 Pod 가 CrashLoopBackOff·ImagePullBackOff·OOMKilled
 
 ## 1. 증거 수집 (이 순서로, 모두 읽기 전용)
 
+kubectl 은 `kubectl <동사> … -n <ns>` 순서로 쓴다. settings.json 의 allow 규칙이 `kubectl get` 처럼 동사로 시작하는 명령만 승인 없이 통과시킨다.
+
+
 1. 변경 이력: `argocd app history <app>`, `git log --oneline -10 -- gitops/` — 장애 직전에 무엇이 바뀌었나
-2. 현재 상태: `argocd app get <app>`, `kubectl -n <ns> get deploy,rs,pods -o wide`
-3. Pod 상세: `kubectl -n <ns> describe pod <pod>` — State, Last State, Reason, Exit Code, Events
-4. 이벤트: `kubectl -n <ns> events --for pod/<pod>` 또는 `get events --sort-by=.lastTimestamp`
-5. 로그: `kubectl -n <ns> logs <pod> -c <container> --previous --tail=100` (재시작된 경우 이전 컨테이너)
-6. 롤아웃: `kubectl -n <ns> rollout history deploy/<name>`
+2. 현재 상태: `argocd app get <app>`, `kubectl get deploy,rs,pods -n <ns> -o wide`
+3. Pod 상세: `kubectl describe pod <pod> -n <ns>` — State, Last State, Reason, Exit Code, Events
+4. 이벤트: `kubectl events --for pod/<pod> -n <ns>` 또는 `kubectl get events -n <ns> --sort-by=.lastTimestamp`
+5. 로그: `kubectl logs <pod> -c <container> -n <ns> --previous --tail=100` (재시작된 경우 이전 컨테이너)
+6. 롤아웃: `kubectl rollout history deploy/<name> -n <ns>`
 7. 렌더링 차이: 의심 커밋의 values 변경을 `git show <sha> -- gitops/values/` 로 확인
 
 Secret 내용은 조회하지 않는다. 출력이 길면 관련 줄만 인용한다.

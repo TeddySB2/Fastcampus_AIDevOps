@@ -1,9 +1,22 @@
 # PR 마다 product-catalog 를 테스트 → 이미지 빌드(push 안 함) → Trivy 스캔 → SBOM 순서로 검사한다.
-# 클라우드 자격 증명을 받지 않고, 클러스터에 배포하지 않는다 (.github/CLAUDE.md).
+# PR 에서는 클라우드 자격 증명을 받지 않고, 클러스터에 배포하지 않는다 (.github/CLAUDE.md).
+#
+# 배포 브랜치(Argo CD 가 읽는 브랜치)에 머지되면 같은 검사를 다시 돌리고, 스캔을 통과한 그 이미지를
+# OIDC 로 ECR 에 push 한 뒤 dev values 의 이미지를 digest 로 바꾸는 PR 을 만든다 (publish job).
+# 클러스터에는 직접 배포하지 않는다. 배포는 그 PR 이 머지된 뒤 Argo CD 가 한다.
+#
+# 저장소 변수: AWS_CI_ROLE_ARN (infra/cluster 출력 github_ci_role_arn)
 name: CI
 
 on:
   pull_request:
+    paths:
+      - app/product-catalog/**
+      - .github/workflows/ci.yaml
+      - .trivyignore
+  push:
+    # 배포 브랜치. infra/platform 의 gitops_revision, infra/cluster 의 github_deploy_branch 와 같게 둔다.
+    branches: [part3]
     paths:
       - app/product-catalog/**
       - .github/workflows/ci.yaml
@@ -13,12 +26,13 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  # 배포 브랜치의 publish 는 ECR push 와 PR 생성 도중에 취소하지 않는다.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   APP_DIR: app/product-catalog
-  IMAGE: product-catalog:${{ github.event.pull_request.head.sha }}
+  IMAGE: product-catalog:${{ github.event.pull_request.head.sha || github.sha }}
 
 jobs:
   test:
@@ -86,6 +100,108 @@ jobs:
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: sbom-product-catalog-${{ github.event.pull_request.head.sha }}
+          name: sbom-product-catalog-${{ github.event.pull_request.head.sha || github.sha }}
           path: sbom.spdx.json
           if-no-files-found: error
+
+      # publish 가 다시 빌드하지 않고 스캔을 통과한 이 이미지를 그대로 올리도록 넘긴다.
+      - name: Save scanned image
+        if: github.event_name == 'push'
+        run: docker save "$IMAGE" -o image.tar
+
+      - name: Upload scanned image
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: image-product-catalog-${{ github.sha }}
+          path: image.tar
+          retention-days: 1
+          if-no-files-found: error
+
+  publish:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/part3'
+    needs: [test, build-scan-sbom]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write       # 배포 브랜치 push
+      pull-requests: write  # 배포 PR 생성
+      id-token: write       # AWS OIDC
+    env:
+      AWS_REGION: ap-northeast-2
+      ECR_REPOSITORY: ai-devops-lab/product-catalog
+      VALUES_FILE: gitops/values/otel-demo/dev.yaml
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Short sha (image tag)
+        id: sha
+        run: echo "short=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: image-product-catalog-${{ github.sha }}
+
+      - name: Load scanned image
+        run: docker load -i image.tar && rm image.tar
+
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_CI_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd # v2.1.7
+
+      # ECR 은 태그 불변(IMMUTABLE)이다. 재실행으로 태그가 이미 있으면 push 하지 않고 기존 digest 를 쓴다.
+      # digest 는 스펙의 완료 증거와 같은 출처(ecr describe-images)에서 읽는다.
+      - name: Push to ECR (tag = git sha)
+        id: push
+        env:
+          REPOSITORY_URL: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}
+          TAG: ${{ steps.sha.outputs.short }}
+        run: |
+          if aws ecr describe-images --repository-name "$ECR_REPOSITORY" --image-ids imageTag="$TAG" >/dev/null 2>&1; then
+            echo "::notice::$REPOSITORY_URL:$TAG 가 이미 있어 push 를 건너뜁니다."
+          else
+            docker tag "$IMAGE" "$REPOSITORY_URL:$TAG"
+            docker push "$REPOSITORY_URL:$TAG"
+          fi
+          digest=$(aws ecr describe-images --repository-name "$ECR_REPOSITORY" --image-ids imageTag="$TAG" \
+            --query 'imageDetails[0].imageDigest' --output text)
+          echo "repository=$REPOSITORY_URL" >> "$GITHUB_OUTPUT"
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+
+      - name: Update dev values (tag = "<sha>@<digest>")
+        env:
+          REPO: ${{ steps.push.outputs.repository }}
+          TAG: ${{ steps.sha.outputs.short }}@${{ steps.push.outputs.digest }}
+        run: |
+          yq -i '.components."product-catalog".imageOverride.repository = strenv(REPO)' "$VALUES_FILE"
+          yq -i '.components."product-catalog".imageOverride.tag = strenv(TAG)' "$VALUES_FILE"
+          git diff -- "$VALUES_FILE"
+
+      - name: Open dev deploy PR
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        with:
+          branch: deploy/product-catalog-${{ steps.sha.outputs.short }}
+          add-paths: ${{ env.VALUES_FILE }}
+          commit-message: "gitops(dev): product-catalog 를 ECR 이미지(${{ steps.sha.outputs.short }}@${{ steps.push.outputs.digest }})로 배포"
+          title: "gitops(dev): product-catalog 를 ECR 이미지(${{ steps.sha.outputs.short }})로 배포"
+          body: |
+            CI(publish job)가 만든 dev 배포 PR 입니다. 머지하면 Argo CD 가 `otel-demo-dev` 를 자동 동기화합니다.
+
+            - 커밋: ${{ github.sha }}
+            - 이미지: `${{ steps.push.outputs.repository }}:${{ steps.sha.outputs.short }}`
+            - digest: `${{ steps.push.outputs.digest }}`
+            - 스캔: Trivy CRITICAL/HIGH (수정 가능) 통과, SBOM 은 워크플로 아티팩트 `sbom-product-catalog-${{ github.sha }}`
+            - 실행: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            머지 후 확인 (스펙 5장)
+            - [ ] `argocd app get otel-demo-dev` → Synced / Healthy
+            - [ ] `kubectl get pod -n otel-demo-dev -o jsonpath='{..imageID}'` 에서 product-catalog 의 digest = 위 digest
+            - [ ] `tests/smoke.sh` 통과
+
+            문제가 있으면 이 PR 의 revert PR 로 되돌립니다.

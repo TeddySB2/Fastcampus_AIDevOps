@@ -1,0 +1,34 @@
+# OTel Demo prod: 자동 동기화하지 않는다. 승격 PR 이 merge 된 뒤 사람이 Diff 를 보고 Sync 한다 (6-3).
+# 학습 비용을 위해 같은 클러스터의 별도 네임스페이스를 prod 로 쓴다. 실무에서는 클러스터를 나눈다.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: otel-demo-prod
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"  # AppProject(wave 0) 다음
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: otel-demo
+  sources:
+    - repoURL: https://open-telemetry.github.io/opentelemetry-helm-charts
+      chart: opentelemetry-demo
+      targetRevision: 0.42.1
+      helm:
+        releaseName: otel-demo-prod
+        valueFiles:
+          - $values/gitops/values/otel-demo/common.yaml
+          - $values/gitops/values/otel-demo/prod.yaml
+    # 저장소를 fork 했다면 project.yaml 의 sourceRepos 와 함께 바꾼다
+    - repoURL: https://github.com/TeddySB2/Fastcampus_AIDevOps.git
+      targetRevision: part3  # infra/platform 의 gitops_revision 과 같게
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: otel-demo-prod
+  # syncPolicy.automated 가 없다 = 수동 Sync
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

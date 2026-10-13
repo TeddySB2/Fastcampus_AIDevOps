@@ -6,10 +6,10 @@ metadata:
   namespace: argocd
 spec:
   description: OpenTelemetry Demo (dev / prod)
-  # 저장소를 fork 했다면 아래 GitHub URL 을 내 저장소로 바꾼다
+  # 이 저장소는 fork 해서 쓰므로 계정 이름은 패턴(*)으로 허용한다 (저장소 이름은 고정)
   sourceRepos:
     - https://open-telemetry.github.io/opentelemetry-helm-charts
-    - https://github.com/TeddySB2/Fastcampus_AIDevOps.git
+    - https://github.com/*/Fastcampus_AIDevOps.git
   destinations:
     - server: https://kubernetes.default.svc
       namespace: otel-demo-dev

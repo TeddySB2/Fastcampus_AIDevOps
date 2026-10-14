@@ -39,6 +39,10 @@ jobs:
             echo "::error::dev.yaml 에 product-catalog 이미지가 없습니다. CI 배포 PR 을 먼저 merge 하세요."
             exit 1
           fi
+          if [ "$(yq '.components."product-catalog".imageOverride.tag' "$PROD_VALUES")" = "$tag" ]; then
+            echo "::error::prod.yaml 에 이미 같은 이미지($tag)가 있습니다. 승격할 것이 없습니다."
+            exit 1
+          fi
           REPO="$repo" TAG="$tag" yq -i '
             .components."product-catalog".imageOverride.repository = strenv(REPO) |
             .components."product-catalog".imageOverride.tag = strenv(TAG)

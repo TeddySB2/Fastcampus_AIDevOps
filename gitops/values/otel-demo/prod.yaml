@@ -7,7 +7,6 @@ default:
   envOverrides:
     - name: OTEL_SDK_DISABLED
       value: "true"
-
 opentelemetry-collector:
   enabled: false
 jaeger:
@@ -18,9 +17,6 @@ grafana:
   enabled: false
 opensearch:
   enabled: false
-
 components:
   load-generator:
     enabled: false
-  # product-catalog:
-  #   imageOverride:   ← 승격 워크플로가 dev 의 값을 그대로 복사한다

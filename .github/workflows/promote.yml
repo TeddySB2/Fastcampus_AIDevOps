@@ -1,0 +1,70 @@
+# 6-3: dev 에서 검증한 product-catalog 이미지를 prod values 로 승격하는 PR 을 만든다.
+#
+# - 다시 빌드하지 않는다. dev.yaml 의 repository · tag("<sha>@sha256:<digest>")를 prod.yaml 로 복사만 한다.
+# - "prod" Environment 의 승인자가 승인할 때까지 job 은 시작하지 않고 대기한다.
+# - PR 이 merge 되어도 otel-demo-prod 는 자동 동기화하지 않는다. 사람이 Argo CD 에서 Diff 를 보고 Sync 한다.
+name: Promote to prod
+
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: "승격 사유 (PR 본문에 기록)"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    environment: prod # 승인자가 승인할 때까지 대기
+    permissions:
+      contents: write      # 승격 브랜치 push
+      pull-requests: write # 승격 PR 생성
+    env:
+      DEV_VALUES: gitops/values/otel-demo/dev.yaml
+      PROD_VALUES: gitops/values/otel-demo/prod.yaml
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Copy image from dev to prod
+        id: copy
+        run: |
+          repo=$(yq '.components."product-catalog".imageOverride.repository' "$DEV_VALUES")
+          tag=$(yq '.components."product-catalog".imageOverride.tag' "$DEV_VALUES")
+          if [ "$repo" = "null" ] || [ "$tag" = "null" ]; then
+            echo "::error::dev.yaml 에 product-catalog 이미지가 없습니다. CI 배포 PR 을 먼저 merge 하세요."
+            exit 1
+          fi
+          REPO="$repo" TAG="$tag" yq -i '
+            .components."product-catalog".imageOverride.repository = strenv(REPO) |
+            .components."product-catalog".imageOverride.tag = strenv(TAG)
+          ' "$PROD_VALUES"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          git diff -- "$PROD_VALUES"
+
+      - name: Open promotion PR
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        with:
+          branch: promote/prod-product-catalog-${{ github.run_id }}
+          add-paths: ${{ env.PROD_VALUES }}
+          commit-message: "promote(prod): product-catalog ${{ steps.copy.outputs.tag }}"
+          title: "promote(prod): product-catalog"
+          labels: promote-prod
+          body: |
+            dev 에서 검증한 이미지를 다시 빌드하지 않고 prod 로 승격합니다.
+
+            - 이미지: `${{ steps.copy.outputs.tag }}` (dev.yaml 과 같은 문자열)
+            - 사유: ${{ inputs.reason }}
+            - 요청자: @${{ github.actor }} / 실행: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            merge 후 확인 (사람이 한다)
+            - [ ] `argocd app diff otel-demo-prod` 가 product-catalog 이미지 외에 바뀌는 것이 없는지
+            - [ ] Argo CD 에서 `otel-demo-prod` Sync → Synced / Healthy
+            - [ ] prod frontend-proxy 를 8082 로 port-forward 후 `BASE_URL=http://localhost:8082 ./tests/smoke.sh`
+            - [ ] Pod 의 imageID digest 가 위 값과 같은지
+
+            문제가 있으면 이 PR 을 revert 하는 PR 로 되돌립니다.

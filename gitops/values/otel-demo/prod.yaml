@@ -17,3 +17,7 @@ opensearch:
 components:
   load-generator:
     enabled: false
+  product-catalog:
+    imageOverride:
+      repository: 067620369479.dkr.ecr.ap-northeast-2.amazonaws.com/ai-devops-lab/product-catalog
+      tag: c2d002d@sha256:bf7da8799db9921f2a5df2a7449debb2b1b2fff0ba721702ebc31d70f688f50b

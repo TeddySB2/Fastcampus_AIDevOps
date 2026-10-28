@@ -78,6 +78,13 @@ grafana:
   grafana.ini:
     auth.anonymous:
       enabled: false
+    users:
+      viewers_can_edit: false
+    # 쿼리 감사: 누가(어느 서비스 계정이) 어떤 데이터소스를 조회했는지 서버 로그에 남긴다 (2-1)
+    log:
+      level: info
+    dataproxy:
+      logging: true
   resources:
     requests:
       cpu: 50m

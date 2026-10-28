@@ -46,7 +46,8 @@
       "Bash(./tests/signals.sh:*)",
       "Bash(./tests/promtool.sh:*)",
       "Bash(promtool check:*)",
-      "Bash(promtool test:*)"
+      "Bash(promtool test:*)",
+      "mcp__grafana"
     ],
     "ask": [
       "Bash(git push:*)",

@@ -5,15 +5,21 @@
       "args": [
         "mcp-grafana@2.0.2",
         "--disable-write",
-        "--enabled-tools",
-        "search,datasource,prometheus,loki,tempo,alerting,dashboard",
-        "--loki-guardrail-max-range",
-        "24h"
+        "--enabled-tools", "search,datasource,prometheus,loki,tempo,alerting,dashboard",
+        "--loki-guardrail-max-range", "24h"
       ],
       "env": {
         "GRAFANA_URL": "${GRAFANA_URL:-http://localhost:3000}",
         "GRAFANA_SERVICE_ACCOUNT_TOKEN": "${GRAFANA_SERVICE_ACCOUNT_TOKEN}",
         "GRAFANA_USAGE_STATS": "false"
+      }
+    },
+    "slack": {
+      "type": "http",
+      "url": "https://mcp.slack.com/mcp",
+      "oauth": {
+        "clientId": "1601185624273.8899143856786",
+        "callbackPort": 3118
       }
     }
   }

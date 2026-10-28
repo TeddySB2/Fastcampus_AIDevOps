@@ -55,7 +55,15 @@ SLO 수치는 결제 서비스 오너가 정한 값이다 (docs/requirements/obs
 
 ## 6. 알람 계약
 
-4-1 에서 채운다 (등급 · 조건 · 어디로 · 누가 · 응답 · Runbook).
+| 등급 | 조건 | 어디로 | 누가 | 응답 | Runbook |
+| --- | --- | --- | --- | --- | --- |
+| page | 주문 가용성 burn rate 14.4 초과 (1h · 5m 창 모두), 2분 지속 | Slack #alerts + 담당자 멘션 | 온콜 (@TeddySB2) | 15분 안에 확인 | docs/runbooks/checkout-errors.md |
+| ticket | 주문 가용성 burn rate 6 초과 (6h · 30m 창 모두), 15분 지속 | Slack #alerts | 서비스 오너 | 다음 업무일 | 같은 문서 |
+| 기록 | 그 밖의 원인형 지표 (CPU, 재시작 1회 등) | 대시보드 · 일일 점검 | — | 일일 점검에서 확인 | — |
+
+- 원인 후보(CPU, 메모리)로 사람을 깨우지 않는다. 사용자 영향(주문 실패)으로 깨운다.
+- 모든 page · ticket 알람에는 `runbook_url` 과 `summary` 가 있다.
+- 알람 룰은 `gitops/manifests/observability/rules/` 에 두고 `./tests/promtool.sh` 를 통과해야 merge 한다.
 
 ## 7. 관측 기준선 (1-3 에서 측정, `./tests/signals.sh`)
 
@@ -90,7 +98,7 @@ SLO 수치는 결제 서비스 오너가 정한 값이다 (docs/requirements/obs
 | --- | --- |
 | 스택 | Argo CD `obs-*` 앱 4개 Synced · Healthy |
 | 신호 연결 | `./tests/signals.sh` 가 PASS (메트릭 · 로그 · 트레이스 · exemplar) |
-| 알람 | 4-1 에서 정한다 |
+| 알람 | `./tests/promtool.sh` 통과, `paymentFailure 50%` 주입 시 page 발화 → Slack 도착, off 하면 해제 |
 | AI 조회 | Claude 답변에 쿼리 · 시간 범위 · 데이터소스가 붙어 있고, 원본 패널 값과 같다 |
 | 일일 점검 | `/daily-health` 결과가 #ops-daily 에 올라가고, 조회 실패 항목은 "확인 필요" 로 표시된다 |
 

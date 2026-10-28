@@ -1,0 +1,93 @@
+# 관측 설정 PR 검사: 알람 룰(문법 + 단위 테스트)과 대시보드 JSON.
+# 클러스터에 접근하지 않는다. 배포는 merge 뒤 Argo CD 가 한다.
+name: CI observability
+
+on:
+  pull_request:
+    paths:
+      - gitops/manifests/observability/**
+      - gitops/values/observability/**
+      - tests/promtool.sh
+      - .github/workflows/ci-observability.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-obs-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  PROMETHEUS_VERSION: "3.15.0"
+
+jobs:
+  rules-and-dashboards:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install promtool (checksum verified)
+        run: |
+          set -euo pipefail
+          base="https://github.com/prometheus/prometheus/releases/download/v${PROMETHEUS_VERSION}"
+          tarball="prometheus-${PROMETHEUS_VERSION}.linux-amd64.tar.gz"
+          curl -sSLfO "$base/$tarball"
+          curl -sSLf "$base/sha256sums.txt" | grep " $tarball\$" | sha256sum -c -
+          tar xzf "$tarball" "prometheus-${PROMETHEUS_VERSION}.linux-amd64/promtool"
+          sudo mv "prometheus-${PROMETHEUS_VERSION}.linux-amd64/promtool" /usr/local/bin/
+          promtool --version
+
+      - name: Alert rules — check + unit tests
+        run: ./tests/promtool.sh
+
+      - name: Alert rules — contract (severity, runbook_url, summary)
+        run: |
+          python3 - <<'PY'
+          import glob, sys, yaml
+          bad = []
+          for f in glob.glob("gitops/manifests/observability/rules/*.yaml"):
+              for d in yaml.safe_load_all(open(f)):
+                  for g in (d or {}).get("spec", {}).get("groups", []):
+                      for r in g.get("rules", []):
+                          if "alert" not in r:
+                              continue
+                          sev = r.get("labels", {}).get("severity")
+                          ann = r.get("annotations", {})
+                          if sev not in ("page", "ticket"):
+                              bad.append(f"{f}: {r['alert']} severity={sev} (page | ticket 만 허용)")
+                          for k in ("summary", "runbook_url"):
+                              if not ann.get(k):
+                                  bad.append(f"{f}: {r['alert']} annotations.{k} 없음")
+          print("\n".join(bad) or "알람 계약 OK")
+          sys.exit(1 if bad else 0)
+          PY
+
+      - name: Dashboards — JSON and datasource uid
+        run: |
+          python3 - <<'PY'
+          import glob, json, sys, yaml
+          allowed = {"prometheus", "loki", "tempo", "-- Grafana --", None}
+          bad = []
+          for f in glob.glob("gitops/manifests/observability/dashboards/*.yaml"):
+              for d in yaml.safe_load_all(open(f)):
+                  if not d or d.get("kind") != "ConfigMap":
+                      continue
+                  if d["metadata"].get("labels", {}).get("grafana_dashboard") != "1":
+                      bad.append(f"{f}: grafana_dashboard 라벨 없음")
+                  for name, body in d.get("data", {}).items():
+                      try:
+                          dash = json.loads(body)
+                      except json.JSONDecodeError as e:
+                          bad.append(f"{f}:{name}: JSON 오류 {e}"); continue
+                      if not dash.get("uid"):
+                          bad.append(f"{f}:{name}: uid 없음")
+                      for p in dash.get("panels", []):
+                          for t in [p] + p.get("targets", []):
+                              uid = (t.get("datasource") or {}).get("uid")
+                              if uid not in allowed:
+                                  bad.append(f"{f}:{name}: 패널 '{p.get('title')}' 데이터소스 uid={uid}")
+          print("\n".join(bad) or "대시보드 OK")
+          sys.exit(1 if bad else 0)
+          PY

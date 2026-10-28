@@ -1,0 +1,75 @@
+# 결제(주문) 가용성 SLO 알람 — 알람 계약은 specs/observability.md 6장.
+#
+# SLI: checkout 의 PlaceOrder 서버 span 중 에러가 아닌 비율 (span metrics, Collector 의 span_metrics connector)
+# SLO: 99% (30일). 에러 예산 1%.
+# 알람: multi-window multi-burn-rate (Google SRE Workbook "Alerting on SLOs")
+#   page   — 1시간 창과 5분 창 모두 burn rate 14.4 초과 (30일 예산의 2% 를 1시간에 소진하는 속도)
+#   ticket — 6시간 창과 30분 창 모두 burn rate 6 초과 (30일 예산의 5% 를 6시간에 소진하는 속도)
+# 짧은 창(5m, 30m)은 장애가 끝난 뒤 알람이 빨리 풀리게 한다.
+#
+# 검증: ./tests/promtool.sh  (promtool check rules + test rules, CI 에서도 같은 스크립트)
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: checkout-slo
+  namespace: observability
+  labels:
+    app.kubernetes.io/part-of: observability
+spec:
+  groups:
+    - name: checkout-slo.recording
+      interval: 30s
+      rules:
+        - record: checkout:place_order_errors:ratio_rate5m
+          expr: |
+            (sum(rate(traces_span_metrics_calls_total{service_name="checkout", span_name="oteldemo.CheckoutService/PlaceOrder", span_kind="SPAN_KIND_SERVER", status_code="STATUS_CODE_ERROR"}[5m])) or vector(0))
+            /
+            sum(rate(traces_span_metrics_calls_total{service_name="checkout", span_name="oteldemo.CheckoutService/PlaceOrder", span_kind="SPAN_KIND_SERVER"}[5m]))
+        - record: checkout:place_order_errors:ratio_rate30m
+          expr: |
+            (sum(rate(traces_span_metrics_calls_total{service_name="checkout", span_name="oteldemo.CheckoutService/PlaceOrder", span_kind="SPAN_KIND_SERVER", status_code="STATUS_CODE_ERROR"}[30m])) or vector(0))
+            /
+            sum(rate(traces_span_metrics_calls_total{service_name="checkout", span_name="oteldemo.CheckoutService/PlaceOrder", span_kind="SPAN_KIND_SERVER"}[30m]))
+        - record: checkout:place_order_errors:ratio_rate1h
+          expr: |
+            (sum(rate(traces_span_metrics_calls_total{service_name="checkout", span_name="oteldemo.CheckoutService/PlaceOrder", span_kind="SPAN_KIND_SERVER", status_code="STATUS_CODE_ERROR"}[1h])) or vector(0))
+            /
+            sum(rate(traces_span_metrics_calls_total{service_name="checkout", span_name="oteldemo.CheckoutService/PlaceOrder", span_kind="SPAN_KIND_SERVER"}[1h]))
+        - record: checkout:place_order_errors:ratio_rate6h
+          expr: |
+            (sum(rate(traces_span_metrics_calls_total{service_name="checkout", span_name="oteldemo.CheckoutService/PlaceOrder", span_kind="SPAN_KIND_SERVER", status_code="STATUS_CODE_ERROR"}[6h])) or vector(0))
+            /
+            sum(rate(traces_span_metrics_calls_total{service_name="checkout", span_name="oteldemo.CheckoutService/PlaceOrder", span_kind="SPAN_KIND_SERVER"}[6h]))
+
+    - name: checkout-slo.alerts
+      rules:
+        - alert: CheckoutErrorBudgetBurnFast
+          expr: |
+            checkout:place_order_errors:ratio_rate1h > (14.4 * 0.01)
+            and
+            checkout:place_order_errors:ratio_rate5m > (14.4 * 0.01)
+          for: 2m
+          labels:
+            severity: page
+            service_name: checkout
+            slo: checkout-availability
+          annotations:
+            summary: "주문 실패율이 SLO 예산을 빠르게 소진 중 (1h {{ $value | humanizePercentage }})"
+            description: "PlaceOrder 에러 비율이 1시간 · 5분 창 모두 14.4% 를 넘었다. 이 속도면 30일 예산을 이틀 안에 다 쓴다."
+            runbook_url: "https://github.com/TeddySB2/Fastcampus_AIDevOps/blob/part3/docs/runbooks/checkout-errors.md"
+            dashboard: "결제 여정 (uid: checkout-journey)"
+        - alert: CheckoutErrorBudgetBurnSlow
+          expr: |
+            checkout:place_order_errors:ratio_rate6h > (6 * 0.01)
+            and
+            checkout:place_order_errors:ratio_rate30m > (6 * 0.01)
+          for: 15m
+          labels:
+            severity: ticket
+            service_name: checkout
+            slo: checkout-availability
+          annotations:
+            summary: "주문 실패율이 SLO 예산을 꾸준히 소진 중 (6h {{ $value | humanizePercentage }})"
+            description: "PlaceOrder 에러 비율이 6시간 · 30분 창 모두 6% 를 넘었다. 업무 시간에 원인을 확인한다."
+            runbook_url: "https://github.com/TeddySB2/Fastcampus_AIDevOps/blob/part3/docs/runbooks/checkout-errors.md"
+            dashboard: "결제 여정 (uid: checkout-journey)"

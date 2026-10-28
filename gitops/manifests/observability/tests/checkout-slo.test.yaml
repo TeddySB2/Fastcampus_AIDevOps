@@ -1,0 +1,56 @@
+# promtool 단위 테스트: ./tests/promtool.sh 가 PrometheusRule 의 spec 을 꺼내 checkout-slo.rules.yaml 로 만든 뒤 실행한다.
+# 시나리오 3개: 정상(에러 0) / 순간 오류(5분 창만 높음) / 지속 장애(에러 50%)
+rule_files:
+  - checkout-slo.rules.yaml
+
+evaluation_interval: 30s
+
+tests:
+  # 1) 정상: 에러가 없으면 아무 알람도 없다. 에러 시계열이 아예 없어도 비율은 0 이다 (or vector(0))
+  - interval: 1m
+    input_series:
+      - series: 'traces_span_metrics_calls_total{service_name="checkout", span_name="oteldemo.CheckoutService/PlaceOrder", span_kind="SPAN_KIND_SERVER", status_code="STATUS_CODE_UNSET"}'
+        values: '0+60x120'
+    promql_expr_test:
+      - expr: checkout:place_order_errors:ratio_rate5m
+        eval_time: 60m
+        exp_samples:
+          - labels: 'checkout:place_order_errors:ratio_rate5m'
+            value: 0
+    alert_rule_test:
+      - eval_time: 60m
+        alertname: CheckoutErrorBudgetBurnFast
+        exp_alerts: []
+
+  # 2) 순간 오류: 55분 정상 뒤 5분 동안 에러 30%. 5분 창은 넘지만 1시간 창은 14.4% 미만 → page 없음
+  - interval: 1m
+    input_series:
+      - series: 'traces_span_metrics_calls_total{service_name="checkout", span_name="oteldemo.CheckoutService/PlaceOrder", span_kind="SPAN_KIND_SERVER", status_code="STATUS_CODE_UNSET"}'
+        values: '0+60x55 3300+42x5'
+      - series: 'traces_span_metrics_calls_total{service_name="checkout", span_name="oteldemo.CheckoutService/PlaceOrder", span_kind="SPAN_KIND_SERVER", status_code="STATUS_CODE_ERROR"}'
+        values: '0+0x55 0+18x5'
+    alert_rule_test:
+      - eval_time: 60m
+        alertname: CheckoutErrorBudgetBurnFast
+        exp_alerts: []
+
+  # 3) 지속 장애: 처음부터 에러 50% (paymentFailure 50% 와 같은 상황) → 2분 뒤 page 발화
+  - interval: 1m
+    input_series:
+      - series: 'traces_span_metrics_calls_total{service_name="checkout", span_name="oteldemo.CheckoutService/PlaceOrder", span_kind="SPAN_KIND_SERVER", status_code="STATUS_CODE_UNSET"}'
+        values: '0+30x60'
+      - series: 'traces_span_metrics_calls_total{service_name="checkout", span_name="oteldemo.CheckoutService/PlaceOrder", span_kind="SPAN_KIND_SERVER", status_code="STATUS_CODE_ERROR"}'
+        values: '0+30x60'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: CheckoutErrorBudgetBurnFast
+        exp_alerts:
+          - exp_labels:
+              severity: page
+              service_name: checkout
+              slo: checkout-availability
+            exp_annotations:
+              summary: "주문 실패율이 SLO 예산을 빠르게 소진 중 (1h 50%)"
+              description: "PlaceOrder 에러 비율이 1시간 · 5분 창 모두 14.4% 를 넘었다. 이 속도면 30일 예산을 이틀 안에 다 쓴다."
+              runbook_url: "https://github.com/TeddySB2/Fastcampus_AIDevOps/blob/part3/docs/runbooks/checkout-errors.md"
+              dashboard: "결제 여정 (uid: checkout-journey)"

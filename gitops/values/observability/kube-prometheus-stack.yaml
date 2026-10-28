@@ -63,7 +63,73 @@ alertmanager:
       requests:
         cpu: 20m
         memory: 64Mi
-  # 알람 발송(Slack)은 4-1 에서 알람 계약을 정한 뒤 붙인다. 지금은 차트 기본 설정(모두 null 수신자)이다.
+    # Slack 웹훅 URL 은 Git 에 두지 않는다. 사람이 Secret 을 만든다 (4-1):
+    #   kubectl -n observability create secret generic alertmanager-slack --from-literal=url='https://hooks.slack.com/services/...'
+    # → /etc/alertmanager/secrets/alertmanager-slack/url 로 마운트된다
+    secrets:
+      - alertmanager-slack
+  config:
+    global:
+      resolve_timeout: 5m
+      slack_api_url_file: /etc/alertmanager/secrets/alertmanager-slack/url
+    route:
+      receiver: "null"
+      group_by: [alertname, namespace, service_name]
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+      routes:
+        # Watchdog 는 "알람 파이프라인이 살아 있다" 는 신호다. 사람에게 보내지 않는다
+        - receiver: "null"
+          matchers:
+            - alertname = "Watchdog"
+        # 알람 계약(specs/observability.md 6장): page · ticket 만 Slack 으로
+        - receiver: slack-alerts
+          matchers:
+            - severity =~ "page|critical"
+          repeat_interval: 1h
+        - receiver: slack-alerts
+          matchers:
+            - severity =~ "ticket|warning"
+          repeat_interval: 12h
+    inhibit_rules:
+      # 같은 서비스에서 page 가 울리면 ticket 은 보내지 않는다 (같은 원인의 하위 증상)
+      - source_matchers:
+          - severity = "page"
+        target_matchers:
+          - severity = "ticket"
+        equal: [service_name]
+      # 차트 기본 inhibit 규칙
+      - source_matchers:
+          - severity = "critical"
+        target_matchers:
+          - severity =~ "warning|info"
+        equal: [namespace, alertname]
+      - source_matchers:
+          - severity = "warning"
+        target_matchers:
+          - severity = "info"
+        equal: [namespace, alertname]
+      - source_matchers:
+          - alertname = "InfoInhibitor"
+        target_matchers:
+          - severity = "info"
+        equal: [namespace]
+      - target_matchers:
+          - alertname = "InfoInhibitor"
+    receivers:
+      - name: "null"
+      - name: slack-alerts
+        slack_configs:
+          - channel: "#alerts"
+            send_resolved: true
+            title: '[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }} ({{ .CommonLabels.severity }})'
+            text: |-
+              {{ range .Alerts }}• {{ .Annotations.summary }}
+              {{ if .Annotations.runbook_url }}Runbook: {{ .Annotations.runbook_url }}{{ end }}
+              {{ end }}
+    templates:
+      - /etc/alertmanager/config/*.tmpl
 
 grafana:
   # admin 계정은 차트가 만들지 않는다. 사람이 Secret 을 먼저 만든다 (1-2):

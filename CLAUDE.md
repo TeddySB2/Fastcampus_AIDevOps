@@ -14,7 +14,9 @@
 
 ## 작업 스펙 (현재 작업의 목적 · 환경 · 범위 · 제약 · 완료 증거)
 
-@specs/eks-demo.md
+@specs/observability.md
+
+(이전 작업: specs/eks-demo.md — 환경 값은 그 문서를 따른다)
 
 - 스펙과 다른 요청(범위 밖, 제약 위반)을 받으면 작업 전에 차이를 알리고 확인받는다.
 - 스펙 변경은 PR 로만 한다. 작업이 바뀌면 위 import 를 해당 스펙으로 바꾼다.
@@ -26,6 +28,7 @@
 | VPC, EKS, ECR, IAM, 기반 애드온 | Terraform | infra/cluster |
 | Argo CD 와 root Application | Terraform | infra/platform |
 | OTel Demo 설정, HPA 등 앱 리소스 | GitOps (Argo CD) | gitops/ |
+| 관측 스택, 대시보드, 알람 룰 | GitOps (Argo CD) | gitops/ (observability) |
 | 이미지 빌드·스캔·배포 PR | CI | .github/workflows |
 | 설계 선택, 승인, 예외, 복구 판단 | 사람 | PR 리뷰 |
 
@@ -43,5 +46,7 @@
 
 - Terraform: `terraform fmt -check`, `terraform validate`, `checkov -d infra --config-file infra/.checkov.yaml`, `terraform plan` 요약
 - GitOps: YAML 파싱, `helm template` 렌더링, `kubeconform`
+- 관측: 알람 룰은 `./tests/promtool.sh`, 수집 연결은 `./tests/signals.sh`
 - 배포: 현재 작업 스펙의 "완료 증거" 를 모두 통과한다. Pod 가 Running 인 것만으로는 완료가 아니다
 - 보고: 무엇을 바꿨는지, 어떤 검증을 통과했는지, 확인하지 못한 것이 무엇인지
+

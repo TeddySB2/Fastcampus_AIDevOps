@@ -1,0 +1,140 @@
+# kube-prometheus-stack (차트 92.10.0) — dev 실습 환경 값.
+# 키는 추측하지 말고 차트의 values.yaml 에서 확인한다:
+#   helm show values prometheus-community/kube-prometheus-stack --version 92.10.0
+#
+# 실습 환경 제약 (스펙 specs/observability.md "4. 제약"):
+# - EBS CSI 가 없어 PVC 를 만들지 않는다 → Pod 가 재시작되면 메트릭 · 알람 이력이 사라진다. 보존 기간을 짧게 둔다.
+# - 접속은 port-forward. Ingress 를 만들지 않는다.
+# - 운영이라면: PVC(gp3) 또는 원격 저장(Thanos · Mimir · AMP), retention 15d 이상, Grafana DB 는 RDS.
+
+# 리소스 이름을 짧게: kps-prometheus, kps-alertmanager, kps-operator ... (Grafana 는 kps-grafana)
+fullnameOverride: kps
+
+# 기본 알람 룰은 그대로 켠다. EKS 에서 맞지 않는 룰은 4-2 (Alert Noise) 에서 근거를 보고 정리한다.
+defaultRules:
+  create: true
+
+prometheus:
+  prometheusSpec:
+    retention: 2d
+    retentionSize: 8GB
+    scrapeInterval: 30s
+    evaluationInterval: 30s
+    resources:
+      requests:
+        cpu: 200m
+        memory: 1Gi
+      limits:
+        memory: 3Gi
+    # OTel Demo 의 Collector 가 OTLP 로 메트릭을 보낸다 (POST /api/v1/otlp/v1/metrics)
+    enableOTLPReceiver: true
+    otlp:
+      # OTLP 속성 → Prometheus 이름 규칙. 점은 밑줄, 단위 접미사(_seconds, _total)가 붙는다.
+      # Demo 기본 대시보드와 같은 이름을 쓰기 위해 명시한다.
+      translationStrategy: UnderscoreEscapingWithSuffixes
+      keepIdentifyingResourceAttributes: true
+      # 리소스 속성 중 라벨로 올릴 것 (Demo 차트의 Prometheus 설정과 같게)
+      promoteResourceAttributes:
+        - service.name
+        - service.namespace
+        - service.instance.id
+        - service.version
+        - deployment.environment.name
+        - k8s.namespace.name
+        - k8s.pod.name
+        - k8s.deployment.name
+        - k8s.node.name
+        - k8s.container.name
+    # Collector 의 배치 전송 때문에 시각이 조금 늦게 도착하는 샘플을 받는다
+    tsdb:
+      outOfOrderTimeWindow: 30m
+    # 메트릭 → 트레이스 이동 (exemplar)
+    enableFeatures:
+      - exemplar-storage
+    # release 라벨이 없는 PrometheusRule · ServiceMonitor 도 읽는다 (gitops/manifests/observability 의 룰)
+    ruleSelectorNilUsesHelmValues: false
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+
+alertmanager:
+  alertmanagerSpec:
+    retention: 24h
+    resources:
+      requests:
+        cpu: 20m
+        memory: 64Mi
+  # 알람 발송(Slack)은 4-1 에서 알람 계약을 정한 뒤 붙인다. 지금은 차트 기본 설정(모두 null 수신자)이다.
+
+grafana:
+  # admin 계정은 차트가 만들지 않는다. 사람이 Secret 을 먼저 만든다 (1-2):
+  #   kubectl -n observability create secret generic grafana-admin \
+  #     --from-literal=admin-user=admin --from-literal=admin-password="$(openssl rand -base64 18)"
+  admin:
+    existingSecret: grafana-admin
+  # PV 가 없다 → UI 에서 만든 대시보드 · 서비스 계정은 Pod 재시작 때 사라진다.
+  # 대시보드는 Git(ConfigMap)으로만 관리한다 (2-3). 서비스 계정 토큰은 재시작 후 다시 만든다 (2-1).
+  persistence:
+    enabled: false
+  grafana.ini:
+    auth.anonymous:
+      enabled: false
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+  sidecar:
+    dashboards:
+      # ConfigMap 의 grafana_folder 어노테이션으로 폴더를 나눈다 (gitops/manifests/observability/dashboards)
+      folderAnnotation: grafana_folder
+      provider:
+        foldersFromFilesStructure: true
+    datasources:
+      # 기본 Prometheus 데이터소스: exemplar 의 trace_id 를 누르면 Tempo 로 이동
+      exemplarTraceIdDestinations:
+        datasourceUid: tempo
+        traceIdLabelName: trace_id
+  additionalDataSources:
+    - name: Loki
+      uid: loki
+      type: loki
+      access: proxy
+      url: http://loki.observability.svc:3100
+      jsonData:
+        maxLines: 1000
+        # 로그 줄의 trace_id(structured metadata) → Tempo 트레이스로 이동
+        derivedFields:
+          - name: trace_id
+            matcherType: label
+            matcherRegex: trace_id
+            datasourceUid: tempo
+            url: "$${__value.raw}"
+    - name: Tempo
+      uid: tempo
+      type: tempo
+      access: proxy
+      url: http://tempo.observability.svc:3200
+      jsonData:
+        # 트레이스의 span → 같은 trace_id 의 Loki 로그
+        tracesToLogsV2:
+          datasourceUid: loki
+          spanStartTimeShift: "-5m"
+          spanEndTimeShift: "5m"
+          filterByTraceId: true
+          customQuery: true
+          query: '{service_name="$${__span.tags["service.name"]}"} | trace_id="$${__trace.traceId}"'
+        serviceMap:
+          datasourceUid: prometheus
+        nodeGraph:
+          enabled: true
+
+kube-state-metrics:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 64Mi
+
+prometheus-node-exporter:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi

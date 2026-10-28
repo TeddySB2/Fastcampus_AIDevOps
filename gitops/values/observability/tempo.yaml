@@ -1,0 +1,27 @@
+# Tempo (차트 3.2.0, 앱 3.1.x, single binary) — dev 실습 환경 값.
+# 키는 차트 values.yaml 에서 확인한다: helm show values grafana-community/tempo --version 3.2.0
+#
+# 실습 환경: 로컬 디스크(emptyDir), 보존 24시간. Pod 가 재시작되면 트레이스가 사라진다.
+# 운영이라면: S3 백엔드, tempo-distributed, 보존 기간은 장애 조사 주기에 맞춰.
+tempo:
+  retention: 24h
+  # Collector 가 OTLP gRPC(4317)로 보낸다.
+  # 차트 기본값의 jaeger 수신기는 그대로 둔다. null 로 지우면 차트의 Service 템플릿이 렌더링에 실패한다
+  # (tempo/templates/_ports.tpl 이 receivers.jaeger.protocols 를 읽는다)
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: "0.0.0.0:4317"
+        http:
+          endpoint: "0.0.0.0:4318"
+  reportingEnabled: false
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 1Gi
+
+persistence:
+  enabled: false

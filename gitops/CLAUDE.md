@@ -16,3 +16,30 @@ helm template otel-demo open-telemetry/opentelemetry-demo --version 0.42.1 \
   -f gitops/values/otel-demo/common.yaml -f gitops/values/otel-demo/dev.yaml > /tmp/render.yaml
 kubeconform -summary -ignore-missing-schemas /tmp/render.yaml
 ```
+
+## 관측 스택 (observability)
+
+- `apps/observability.yaml`: AppProject `observability` + Application 4개 (kube-prometheus-stack · Loki · Tempo · obs-config).
+- values 는 `values/observability/`, 대시보드 · 알람 룰은 `manifests/observability/` (obs-config 가 읽는다).
+- 대시보드는 `grafana_dashboard: "1"` 라벨의 ConfigMap 으로만 추가한다. 데이터소스 uid 는 `prometheus`, `loki`, `tempo`.
+- 알람 룰은 PrometheusRule 로 쓰고 `severity` 는 `page` · `ticket` 중 하나, `runbook_url` · `summary` 필수 (specs/observability.md 6장).
+- Collector 설정은 Demo 차트 안에 있다 (`values/otel-demo/dev.yaml` 의 `opentelemetry-collector.config`). 기본 exporter 는 null 로 지우지 않는다(렌더링 결과에 빈 값이 남아 Collector 가 시작하지 못한다). pipeline 에서 빼기만 한다.
+
+```bash
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo add grafana-community https://grafana-community.github.io/helm-charts
+helm template kps prometheus-community/kube-prometheus-stack --version 92.10.0 -n observability \
+  -f gitops/values/observability/kube-prometheus-stack.yaml > /tmp/kps.yaml
+helm template loki grafana-community/loki --version 18.16.1 -n observability -f gitops/values/observability/loki.yaml > /tmp/loki.yaml
+helm template tempo grafana-community/tempo --version 3.2.0 -n observability -f gitops/values/observability/tempo.yaml > /tmp/tempo.yaml
+kubeconform -summary -ignore-missing-schemas /tmp/kps.yaml /tmp/loki.yaml /tmp/tempo.yaml
+./tests/promtool.sh
+
+# Collector 설정 검사 (Demo 차트가 렌더링한 설정을 꺼내 Demo 와 같은 버전의 collector 로 validate)
+helm template otel-demo open-telemetry/opentelemetry-demo --version 0.42.1 \
+  -f gitops/values/otel-demo/common.yaml -f gitops/values/otel-demo/dev.yaml \
+  | yq 'select(.kind == "ConfigMap" and .metadata.name == "otel-collector-agent") | .data.relay' > /tmp/collector.yaml
+podman run --rm -e K8S_NODE_NAME=local -v /tmp/collector.yaml:/c.yaml:ro \
+  otel/opentelemetry-collector-contrib:0.160.0 validate --feature-gates=service.profilesSupport --config=/c.yaml
+# kubeletstats · hostmetrics 의 경로 오류는 클러스터 밖이라 나는 것이다. exporter · pipeline 오류만 본다
+```

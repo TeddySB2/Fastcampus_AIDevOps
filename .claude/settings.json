@@ -19,6 +19,7 @@
       "Bash(kubectl config current-context)",
       "Bash(helm template:*)",
       "Bash(helm lint:*)",
+      "Bash(helm show:*)",
       "Bash(kubeconform:*)",
       "Bash(yq:*)",
       "Bash(argocd app get:*)",
@@ -41,7 +42,11 @@
       "Bash(podman save:*)",
       "Bash(trivy image:*)",
       "mcp__argocd",
-      "mcp__eks"
+      "mcp__eks",
+      "Bash(./tests/signals.sh:*)",
+      "Bash(./tests/promtool.sh:*)",
+      "Bash(promtool check:*)",
+      "Bash(promtool test:*)"
     ],
     "ask": [
       "Bash(git push:*)",
@@ -110,7 +115,10 @@
       {
         "matcher": "Bash",
         "hooks": [
-          { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/guard-kube-context.sh" }
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/guard-kube-context.sh"
+          }
         ]
       }
     ],
@@ -118,7 +126,10 @@
       {
         "matcher": "Edit|MultiEdit|Write",
         "hooks": [
-          { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/post-edit-validate.sh" }
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/post-edit-validate.sh"
+          }
         ]
       }
     ]

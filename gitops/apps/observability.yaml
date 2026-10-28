@@ -1,0 +1,180 @@
+# 관측 스택 (dev 전용): kube-prometheus-stack · Loki · Tempo 와 그 위의 대시보드 · 알람 룰.
+# 차트는 공식 Helm 저장소(버전 고정), values 와 manifests 는 이 저장소에서 읽는다.
+# OTel Demo 의 Collector 가 여기로 보낸다 (gitops/values/otel-demo/dev.yaml).
+# prod 네임스페이스에는 관측 스택을 두지 않는다 (같은 클러스터에 두 벌 → ClusterRole 충돌 · 비용 두 배).
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: observability
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  description: 관측 스택 (kube-prometheus-stack, Loki, Tempo)
+  sourceRepos:
+    - https://prometheus-community.github.io/helm-charts
+    - https://grafana-community.github.io/helm-charts
+    - https://github.com/*/Fastcampus_AIDevOps.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: observability
+    # kube-prometheus-stack 이 컨트롤 플레인 · CoreDNS 수집용 Service 를 kube-system 에 만든다
+    - server: https://kubernetes.default.svc
+      namespace: kube-system
+  clusterResourceWhitelist:
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRole
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRoleBinding
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+    - group: ""
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"
+---
+# 메트릭 · 알람: Prometheus(OTLP 수신) + Alertmanager + Grafana + kube-state-metrics + node-exporter
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: obs-kube-prometheus-stack
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: observability
+  sources:
+    - repoURL: https://prometheus-community.github.io/helm-charts
+      chart: kube-prometheus-stack
+      targetRevision: 92.10.0
+      helm:
+        releaseName: kps
+        valueFiles:
+          - $values/gitops/values/observability/kube-prometheus-stack.yaml
+    - repoURL: https://github.com/TeddySB2/Fastcampus_AIDevOps.git
+      targetRevision: part3  # infra/platform 의 gitops_revision 과 같게
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true  # CRD 가 커서 last-applied annotation 한도(256KiB)를 넘는다
+  # admission webhook 의 caBundle 은 설치 Job 이 채운다. Git 과 비교하지 않는다
+  ignoreDifferences:
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
+      jqPathExpressions:
+        - .webhooks[]?.clientConfig.caBundle
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      jqPathExpressions:
+        - .webhooks[]?.clientConfig.caBundle
+---
+# 로그: Loki (Monolithic, 파일시스템, OTLP 네이티브 수신)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: obs-loki
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: observability
+  sources:
+    - repoURL: https://grafana-community.github.io/helm-charts
+      chart: loki
+      targetRevision: 18.16.1
+      helm:
+        releaseName: loki
+        valueFiles:
+          - $values/gitops/values/observability/loki.yaml
+    - repoURL: https://github.com/TeddySB2/Fastcampus_AIDevOps.git
+      targetRevision: part3
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+---
+# 트레이스: Tempo (single binary, 로컬 디스크)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: obs-tempo
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: observability
+  sources:
+    - repoURL: https://grafana-community.github.io/helm-charts
+      chart: tempo
+      targetRevision: 3.2.0
+      helm:
+        releaseName: tempo
+        valueFiles:
+          - $values/gitops/values/observability/tempo.yaml
+    - repoURL: https://github.com/TeddySB2/Fastcampus_AIDevOps.git
+      targetRevision: part3
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+---
+# 대시보드(ConfigMap) · 알람 룰(PrometheusRule). PrometheusRule CRD 가 생긴 뒤에 동기화한다 (wave 2)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: obs-config
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: observability
+  source:
+    repoURL: https://github.com/TeddySB2/Fastcampus_AIDevOps.git
+    targetRevision: part3
+    path: gitops/manifests/observability
+    directory:
+      recurse: true
+      exclude: "{tests/*,*.md}"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

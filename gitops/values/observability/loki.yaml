@@ -1,0 +1,69 @@
+# Loki (차트 18.16.1, 앱 3.7.x) — dev 실습 환경 값.
+# 키는 차트 values.yaml 에서 확인한다: helm show values grafana-community/loki --version 18.16.1
+#
+# 실습 환경: Monolithic(단일 Pod) + 파일시스템 + emptyDir. Pod 가 재시작되면 로그가 사라진다.
+# 운영이라면: S3 오브젝트 스토리지, SimpleScalable 이상, retention 은 보존 정책에 맞춰.
+deploymentMode: Monolithic
+
+loki:
+  # 단일 테넌트. 멀티 테넌트면 X-Scope-OrgID 헤더가 필요해진다
+  auth_enabled: false
+  commonConfig:
+    replication_factor: 1
+  storage:
+    type: filesystem
+  schemaConfig:
+    configs:
+      - from: "2026-01-01"
+        store: tsdb
+        object_store: filesystem
+        schema: v13
+        index:
+          prefix: loki_index_
+          period: 24h
+  limits_config:
+    # OTLP 로 들어온 로그의 trace_id · span_id 등은 structured metadata 로 저장된다
+    allow_structured_metadata: true
+    retention_period: 48h
+    reject_old_samples: true
+    reject_old_samples_max_age: 168h
+    max_cache_freshness_per_query: 10m
+    split_queries_by_interval: 15m
+    query_timeout: 300s
+    volume_enabled: true
+  compactor:
+    retention_enabled: true
+    delete_request_store: filesystem
+  pattern_ingester:
+    enabled: false
+
+singleBinary:
+  replicas: 1
+  persistence:
+    enabled: false
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 1Gi
+
+# Monolithic 이외 대상은 0 (차트 기본값이 Monolithic 이지만 명시한다)
+backend:
+  replicas: 0
+read:
+  replicas: 0
+write:
+  replicas: 0
+
+# 실습에 필요 없는 부가 구성 요소
+gateway:
+  enabled: false
+chunksCache:
+  enabled: false
+resultsCache:
+  enabled: false
+lokiCanary:
+  enabled: false
+test:
+  enabled: false

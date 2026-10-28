@@ -69,3 +69,65 @@ Claude 가 강의 맥락에 끌려가지 않도록 `.claude/settings.json` 에�
 | `kubeconform` (HPA) | 통과 |
 | `tests/smoke.sh` (모의 서버) | 정상·실패 경로 모두 기대대로 |
 | `helm template` 렌더링, 실제 `terraform plan/apply`, 클러스터 배포 | **미실행 — 1단계 환경 완주에서 확인** |
+
+---
+
+# Part 4 — 관측 데이터를 대화로 다루다
+
+Part 3 를 끝낸 저장소(`part3`)에서 그대로 이어 간다. 배포 브랜치도 `part3` 그대로다.
+
+## 시작 전에 (한 번)
+
+```bash
+git fetch https://github.com/TeddySB2/Fastcampus_AIDevOps.git 'refs/tags/p4-*:refs/tags/p4-*'   # Part 4 태그
+brew install uv prometheus yq     # uvx(mcp-grafana 실행), promtool(알람 룰 검사), yq
+# Collector 설정 검사는 podman 으로 otel/opentelemetry-collector-contrib:0.160.0 이미지를 쓴다 (gitops/CLAUDE.md)
+```
+
+- 클러스터를 지웠다가 다시 만들었다면 Part 3 끝 상태(Argo CD 앱 `otel-demo-dev` Healthy)까지 먼저 확인한다.
+- Slack 은 강의용 워크스페이스를 새로 만들어 쓴다 (채널 `#alerts`, `#ops-daily`). 앱 설치에 워크스페이스 관리자 권한이 필요하다.
+
+## 클립별 시작 상태 (태그)
+
+| 클립 | 태그 | 상태 · 가져오는 방법 |
+| --- | --- | --- |
+| 1-1 (시연) | `p4-ch1-start` | Part 3 완료 상태. 강사가 `specs/observability.md` 를 Claude 와 쓴다 |
+| 1-2 | `p4-ch1-2-start` | 1-1 결과: 관측 스펙(1~5장), CLAUDE.md 가 이 스펙을 import. `git restore --source p4-ch1-2-start -- specs CLAUDE.md` 후 PR |
+| 1-3 | `p4-ch1-3-start` | 관측 스택 기준 코드: `gitops/apps/observability.yaml`, `gitops/values/observability/`, dev.yaml(Collector), `tests/signals.sh`. 1-2 를 건너뛰었다면 `git restore --source p4-ch1-3-start -- gitops tests .claude` 후 PR. **merge 전에** Grafana admin Secret 을 만든다 (아래) |
+| 2-1 | `p4-ch2-start` | 1-3 끝 (관측 기준선 표가 있는 스펙) |
+| 2-2 | `p4-ch2-2-start` | 2-1 결과: `.mcp.json`(grafana), CLAUDE.md 관측 조회 규칙, Grafana 감사 로그, `scripts/grafana-sa-token.sh` |
+| 2-3 | `p4-ch2-3-start` | 2-2 결과: `/obs-ask` Skill |
+| 3-1 (강의) | — | 실습 없음 |
+| 4-1 | `p4-ch4-start` | 2-3 결과(결제 여정 대시보드, 첫 알람 룰) + `tests/promtool.sh` |
+| 4-2 | `p4-ch4-2-start` | 4-1 결과: SLO 알람 + 단위 테스트, 알람 계약(스펙 6장), 룰 검사 CI(`ci-observability.yml`), Runbook, Alertmanager → Slack. **merge 전에** Slack 웹훅 Secret 을 만든다 (아래) |
+| 5-1 | `p4-ch5-start` | 4-2 결과: EKS 에서 수집할 수 없는 대상 · 룰 정리, warning 묶음 발송 |
+| 5-2 | `p4-ch5-2-start` | 5-1 결과: `.mcp.json` 에 slack, CLAUDE.md Slack 전송 규칙 |
+| 5-3 | `p4-ch5-3-start` | 5-2 결과: `/daily-health` Skill (첫 버전) |
+| 완성본 | `part3` (원본 저장소) | Part 4 완료 상태 |
+
+## 사람이 직접 넣는 값 (Git 에 두지 않는다)
+
+```bash
+# 1-2 · 1-3: Grafana admin (obs-kube-prometheus-stack 동기화 전에)
+kubectl create namespace observability
+kubectl -n observability create secret generic grafana-admin \
+  --from-literal=admin-user=admin --from-literal=admin-password="$(openssl rand -base64 18)"
+
+# 2-1: Claude 용 Viewer 토큰 (Grafana Pod 가 재시작되면 다시)
+kubectl -n observability port-forward svc/kps-grafana 3000:80 &
+source <(./scripts/grafana-sa-token.sh)
+claude          # 같은 셸에서 실행해야 .mcp.json 이 토큰을 읽는다
+
+# 4-1: Alertmanager → Slack #alerts (Slack 앱의 Incoming Webhook URL)
+kubectl -n observability create secret generic alertmanager-slack --from-literal=url='https://hooks.slack.com/services/...'
+```
+
+## 장면 재현
+
+| 스크립트 | 장면 | 클립 |
+| --- | --- | --- |
+| `./scenarios/flag.sh paymentFailure 50%` | 주문 절반 실패 → 패널 · 알람 반응 | 2-2, 2-3, 4-1, 4-2 |
+| `./scenarios/flag.sh paymentFailure off` | 해제 확인 | 4-1 |
+| `./scenarios/flag.sh imageSlowLoad 5sec` | 지연 증가 (느린 API 질문) | 2-2 |
+| `./tests/signals.sh` | 세 신호 연결 확인 | 1-3, 5-2 |
+| `./tests/promtool.sh` | 알람 룰 검사 · 단위 테스트 | 2-3, 4-1 |

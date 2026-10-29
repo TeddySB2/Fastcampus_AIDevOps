@@ -1,0 +1,29 @@
+# 관측 스택 전용 AppProject. 기존 otel-demo 프로젝트의 권한을 넓히지 않는다 (specs/observability.md 3장).
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: observability
+  namespace: argocd
+spec:
+  description: dev 관측 스택 (kube-prometheus-stack · Loki · Tempo)
+  # 이 저장소는 fork 해서 쓰므로 계정 이름은 패턴(*)으로 허용한다 (저장소 이름은 고정)
+  sourceRepos:
+    - https://prometheus-community.github.io/helm-charts
+    - https://grafana-community.github.io/helm-charts
+    - https://github.com/*/Fastcampus_AIDevOps.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: observability
+  # kube-prometheus-stack 이 만드는 클러스터 범위 리소스: CRD, kube-state-metrics · node-exporter · operator 의 RBAC
+  clusterResourceWhitelist:
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRole
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRoleBinding
+    - group: ""
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"

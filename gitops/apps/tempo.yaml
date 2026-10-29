@@ -1,0 +1,40 @@
+# Tempo: 트레이스 백엔드. Demo Collector 가 OTLP gRPC(tempo.observability:4317)로 보낸다.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: tempo
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"  # ServiceMonitor CRD(kube-prometheus-stack, wave 1) 다음
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: observability
+  sources:
+    - repoURL: https://grafana-community.github.io/helm-charts
+      chart: tempo
+      targetRevision: 3.2.1
+      helm:
+        releaseName: tempo
+        valueFiles:
+          - $values/gitops/values/observability/tempo.yaml
+    - repoURL: https://github.com/TeddySB2/Fastcampus_AIDevOps.git
+      targetRevision: part3  # infra/platform 의 gitops_revision 과 같게
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - SkipDryRunOnMissingResource=true  # ServiceMonitor CRD 가 아직 없을 때 dry-run 에서 막히지 않게
+    retry:
+      limit: 5
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 5m

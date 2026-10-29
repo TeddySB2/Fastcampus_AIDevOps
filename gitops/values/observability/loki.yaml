@@ -1,0 +1,72 @@
+# Loki (dev 로그 백엔드). 단일 바이너리 · filesystem · emptyDir · 보존 48시간.
+# 스펙: specs/observability.md 2장(보존) · 4장(PVC 금지 · 노드 증설 금지)
+# 키는 차트 20.0.2 의 values.yaml 에서 확인했다 (helm show values grafana-community/loki --version 20.0.2).
+
+deploymentMode: SingleBinary
+
+loki:
+  auth_enabled: false  # 단일 테넌트. Collector 가 X-Scope-OrgID 없이 /otlp 로 보낸다
+  commonConfig:
+    replication_factor: 1
+  storage:
+    type: filesystem
+    filesystem:
+      chunks_directory: /var/loki/chunks
+      rules_directory: /var/loki/rules
+  schemaConfig:
+    configs:
+      - from: "2024-04-01"
+        store: tsdb
+        object_store: filesystem
+        schema: v13
+        index:
+          prefix: loki_index_
+          period: 24h
+  limits_config:
+    retention_period: 48h  # 스펙 2장. compactor 의 retention_enabled 와 함께 동작한다
+    allow_structured_metadata: true  # OTLP 로그의 trace_id · span_id 가 structured metadata 로 들어온다
+  compactor:
+    working_directory: /var/loki/compactor
+    retention_enabled: true
+    delete_request_store: filesystem
+    compaction_interval: 10m
+    retention_delete_delay: 1h
+  analytics:
+    reporting_enabled: false
+
+singleBinary:
+  replicas: 1
+  persistence:
+    enabled: false  # PVC 금지 → emptyDir. 재시작 시 로그 소실(dev 한정)
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 768Mi
+
+# SingleBinary 모드에서 쓰지 않는 구성 요소
+read:
+  replicas: 0
+write:
+  replicas: 0
+backend:
+  replicas: 0
+gateway:
+  enabled: false  # nginx 없이 loki:3100 으로 직접 받는다
+chunksCache:
+  enabled: false  # memcached 8Gi 요청. 노드를 늘리지 않으려면 끈다
+resultsCache:
+  enabled: false
+lokiCanary:
+  enabled: false
+test:
+  enabled: false
+sidecar:
+  rules:
+    enabled: false  # 알람 룰 없음(스펙 3장 제외)
+
+# Prometheus 가 Loki 의 ingest 메트릭을 수집한다 (스펙 7장 C2)
+monitoring:
+  serviceMonitor:
+    enabled: true

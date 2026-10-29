@@ -1,0 +1,45 @@
+# kube-prometheus-stack: 메트릭 · 알람(라우팅 없음) · 대시보드. gitops_revision 브랜치에 반영되면 자동 동기화한다.
+# 차트는 prometheus-community 저장소(버전 고정), values 와 대시보드 ConfigMap 은 이 저장소($values)에서 읽는다.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-prometheus-stack
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"  # AppProject(wave 0) 다음. Loki · Tempo(wave 2)의 ServiceMonitor 는 이 차트의 CRD 가 필요하다
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: observability
+  sources:
+    - repoURL: https://prometheus-community.github.io/helm-charts
+      chart: kube-prometheus-stack
+      targetRevision: 92.14.1
+      helm:
+        releaseName: kube-prometheus-stack
+        valueFiles:
+          - $values/gitops/values/observability/kube-prometheus-stack.yaml
+    # 저장소를 fork 했다면 observability-project.yaml 의 sourceRepos 와 함께 바꾼다
+    - repoURL: https://github.com/TeddySB2/Fastcampus_AIDevOps.git
+      targetRevision: part3  # infra/platform 의 gitops_revision 과 같게
+      ref: values
+    # 차트에 없는 리소스: 결제 여정 대시보드 ConfigMap (grafana_dashboard=1)
+    - repoURL: https://github.com/TeddySB2/Fastcampus_AIDevOps.git
+      targetRevision: part3  # 위 values 소스와 같게
+      path: gitops/manifests/observability
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true  # observability-project.yaml 이 Namespace 생성을 허용
+      - ServerSideApply=true  # CRD 가 커서 last-applied annotation 한도(256KiB)를 넘는다
+    retry:
+      limit: 5
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 5m

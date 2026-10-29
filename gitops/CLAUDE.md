@@ -16,3 +16,21 @@ helm template otel-demo open-telemetry/opentelemetry-demo --version 0.42.1 \
   -f gitops/values/otel-demo/common.yaml -f gitops/values/otel-demo/dev.yaml > /tmp/render.yaml
 kubeconform -summary -ignore-missing-schemas /tmp/render.yaml
 ```
+
+관측 스택(`values/observability`, `apps/{kube-prometheus-stack,loki,tempo}.yaml`)을 바꿀 때. 차트 버전은 Application 의 `targetRevision` 과 같게:
+
+```bash
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo add grafana-community https://grafana-community.github.io/helm-charts
+helm template kube-prometheus-stack prometheus-community/kube-prometheus-stack --version 92.14.1 \
+  -n observability --include-crds -f gitops/values/observability/kube-prometheus-stack.yaml > /tmp/kps.yaml
+helm template loki grafana-community/loki --version 20.0.2 -n observability \
+  -f gitops/values/observability/loki.yaml > /tmp/loki.yaml
+helm template tempo grafana-community/tempo --version 3.2.1 -n observability \
+  -f gitops/values/observability/tempo.yaml > /tmp/tempo.yaml
+kubeconform -summary -ignore-missing-schemas -skip CustomResourceDefinition /tmp/kps.yaml /tmp/loki.yaml /tmp/tempo.yaml
+kubeconform -summary -strict gitops/manifests/observability/*.yaml
+```
+
+- 관측 스택의 Helm 서브차트 값은 `null` 로 지워지지 않는다(그대로 `null` 로 렌더링된다). Demo Collector 의 안 쓰는 exporter 는 정의만 두고 파이프라인에서 뺀다.
+- 대시보드는 `manifests/observability` 의 ConfigMap(label `grafana_dashboard=1`)만 인정한다. Grafana UI 에서 고친 것은 저장되지 않는다.

@@ -15,3 +15,51 @@ components:
     imageOverride:
       repository: "067620369479.dkr.ecr.ap-northeast-2.amazonaws.com/ai-devops-lab/product-catalog"
       tag: "c2d002d@sha256:bf7da8799db9921f2a5df2a7449debb2b1b2fff0ba721702ebc31d70f688f50b"
+
+# ---------------------------------------------------------------------------
+# 관측 스택 연결 (specs/observability.md 3장 · 8장). Demo 내장 백엔드를 끄고 Collector 의 exporter 만 바꾼다.
+# 처리기(transform/redact_sensitive_data · redaction · transform/sanitize_*)와 span_metrics 커넥터는 차트 기본값 그대로다.
+# 키는 차트 0.42.1 의 values.yaml 에서 확인했다 (helm show values open-telemetry/opentelemetry-demo --version 0.42.1).
+
+jaeger:
+  enabled: false
+prometheus:
+  enabled: false
+grafana:
+  enabled: false
+opensearch:
+  enabled: false
+
+opentelemetry-collector:
+  config:
+    exporters:
+      # 차트 기본 exporter(otlp_grpc/jaeger · opensearch)는 정의만 남고 어느 파이프라인에도 쓰이지 않는다.
+      # (서브차트 값은 null 로 지워지지 않고 그대로 null 로 렌더링되어 Collector 설정 오류가 되므로 남겨 둔다.
+      #  파이프라인에 없는 exporter 는 인스턴스화되지 않는다)
+      # 트레이스 → Tempo (observability 네임스페이스)
+      otlp_grpc/tempo:
+        endpoint: tempo.observability.svc.cluster.local:4317
+        tls:
+          insecure: true
+        sending_queue:
+          batch: {}
+      # 메트릭 → kube-prometheus-stack 의 Prometheus (OTLP 수신기). exporter 이름은 그대로 두고 endpoint 만 바꾼다
+      otlp_http/prometheus:
+        endpoint: http://kube-prometheus-stack-prometheus.observability.svc.cluster.local:9090/api/v1/otlp
+        tls:
+          insecure: true
+        sending_queue:
+          batch: {}
+      # 로그 → Loki (OTLP 수신, /otlp/v1/logs)
+      otlp_http/loki:
+        endpoint: http://loki.observability.svc.cluster.local:3100/otlp
+        tls:
+          insecure: true
+        sending_queue:
+          batch: {}
+    service:
+      pipelines:
+        traces:
+          exporters: [otlp_grpc/tempo, debug, span_metrics]
+        logs:
+          exporters: [otlp_http/loki, debug]

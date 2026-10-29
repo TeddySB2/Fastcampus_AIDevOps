@@ -1,0 +1,40 @@
+# Loki: 로그 백엔드. Demo Collector 가 OTLP(http://loki.observability:3100/otlp)로 보낸다.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: loki
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"  # ServiceMonitor CRD(kube-prometheus-stack, wave 1) 다음
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: observability
+  sources:
+    - repoURL: https://grafana-community.github.io/helm-charts
+      chart: loki
+      targetRevision: 20.0.2
+      helm:
+        releaseName: loki
+        valueFiles:
+          - $values/gitops/values/observability/loki.yaml
+    - repoURL: https://github.com/TeddySB2/Fastcampus_AIDevOps.git
+      targetRevision: part3  # infra/platform 의 gitops_revision 과 같게
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - SkipDryRunOnMissingResource=true  # ServiceMonitor CRD 가 아직 없을 때 dry-run 에서 막히지 않게
+    retry:
+      limit: 5
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 5m

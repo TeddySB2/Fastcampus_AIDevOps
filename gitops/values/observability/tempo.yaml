@@ -1,0 +1,35 @@
+# Tempo (dev 트레이스 백엔드). 단일 바이너리 · local 스토리지 · emptyDir · 보존 24시간.
+# 스펙: specs/observability.md 2장(보존) · 4장(PVC 금지)
+# 키는 차트 3.2.1 의 values.yaml 에서 확인했다 (helm show values grafana-community/tempo --version 3.2.1).
+
+replicas: 1
+
+tempo:
+  reportingEnabled: false
+  retention: 24h  # 스펙 2장. backend_worker.compaction.block_retention 으로 렌더링된다
+  # 수신기는 차트 기본값(otlp gRPC 4317 · HTTP 4318, jaeger)을 그대로 둔다. Demo Collector 는 OTLP gRPC(4317)로 보낸다.
+  # (jaeger 수신기를 null 로 지우면 차트 templates/_ports.tpl 이 nil 참조로 렌더링에 실패한다)
+  # span 기반 메트릭은 Demo Collector 의 span_metrics 커넥터가 만든다. Tempo 의 metrics-generator 는 끈다(기본값).
+  metricsGenerator:
+    enabled: false
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 768Mi
+  # 차트는 persistence 를 끄면 볼륨을 만들지 않으므로 emptyDir 를 /var/tempo(traces · wal)에 붙인다
+  extraVolumeMounts:
+    - name: storage
+      mountPath: /var/tempo
+
+persistence:
+  enabled: false  # PVC 금지
+
+extraVolumes:
+  - name: storage
+    emptyDir: {}
+
+# Prometheus 가 Tempo 의 ingest 메트릭을 수집한다 (스펙 7장 C2)
+serviceMonitor:
+  enabled: true

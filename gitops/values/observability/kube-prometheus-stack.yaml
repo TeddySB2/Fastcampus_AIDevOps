@@ -1,0 +1,214 @@
+# kube-prometheus-stack (dev 관측 스택: Prometheus · Alertmanager · Grafana · kube-state-metrics · node-exporter)
+# 스펙: specs/observability.md 2장(보존 2일 · emptyDir · Grafana 로그인 필수) · 3장(알람 룰 제외) · 4장(PVC 금지)
+# 키는 차트 92.14.1 의 values.yaml 에서 확인했다 (helm show values prometheus-community/kube-prometheus-stack --version 92.14.1).
+
+# CRD 는 차트가 설치한다. Argo CD 는 ServerSideApply 로 적용한다 (CRD 가 커서 last-applied annotation 한도를 넘는다).
+crds:
+  enabled: true
+
+# 알람 · 기록 규칙은 이 작업의 범위 밖이다 (알람 정책 회의 뒤 별도 작업). 차트 기본 규칙도 만들지 않는다.
+defaultRules:
+  create: false
+
+# ---------------------------------------------------------------------------
+# Alertmanager: 설치만 한다. 라우팅은 차트 기본(null receiver)으로 비워 둔다. 저장은 emptyDir(storage 미지정).
+alertmanager:
+  enabled: true
+  alertmanagerSpec:
+    retention: 48h
+    resources:
+      requests:
+        cpu: 10m
+        memory: 64Mi
+      limits:
+        memory: 128Mi
+
+# ---------------------------------------------------------------------------
+# Grafana: 로그인 필수. admin 계정은 사람이 만든 Secret observability/grafana-admin 에서 읽는다 (스펙 4장 예외).
+#   kubectl -n observability create secret generic grafana-admin \
+#     --from-literal=admin-user=admin --from-literal=admin-password='<비밀번호>'
+# 대시보드는 Git 의 ConfigMap(label grafana_dashboard=1, gitops/manifests/observability)만 sidecar 가 읽는다.
+grafana:
+  enabled: true
+  defaultDashboardsEnabled: false  # 차트 내장 대시보드는 defaultRules(기록 규칙)에 의존해 비워 둔다
+  admin:
+    existingSecret: grafana-admin
+    userKey: admin-user
+    passwordKey: admin-password
+  grafana.ini:
+    auth:
+      disable_login_form: false
+    auth.anonymous:
+      enabled: false
+    analytics:
+      reporting_enabled: false
+      check_for_updates: false
+  testFramework:
+    enabled: false
+  persistence:
+    enabled: false  # PVC 금지. 대시보드 · 데이터소스는 Git 에서 provisioning 되므로 잃을 것이 없다
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: observability  # Demo 네임스페이스의 ConfigMap 은 읽지 않는다
+      folder: /tmp/dashboards
+    datasources:
+      enabled: true
+      searchNamespace: observability
+      uid: prometheus  # 대시보드 JSON 과 Tempo · Loki 데이터소스가 이 uid 를 참조한다
+    resources:
+      requests:
+        cpu: 20m
+        memory: 64Mi
+      limits:
+        memory: 128Mi
+  # Loki · Tempo 데이터소스. trace_id 로 메트릭 → 트레이스 → 로그를 잇는 설정 (스펙 1장).
+  # 이 블록은 Grafana provisioning 파일이 되므로 Grafana 변수는 "$$" 로 이스케이프한다.
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      uid: loki
+      access: proxy
+      url: http://loki.observability.svc.cluster.local:3100
+      editable: false
+      jsonData:
+        derivedFields:
+          - name: TraceID
+            datasourceUid: tempo
+            matcherType: label
+            matcherRegex: trace_id
+            url: "$${__value.raw}"
+            urlDisplayLabel: Tempo 에서 트레이스 보기
+    - name: Tempo
+      type: tempo
+      uid: tempo
+      access: proxy
+      url: http://tempo.observability.svc.cluster.local:3200
+      editable: false
+      jsonData:
+        tracesToLogsV2:
+          datasourceUid: loki
+          spanStartTimeShift: "-5m"
+          spanEndTimeShift: "5m"
+          filterByTraceID: true
+          filterBySpanID: false
+          tags:
+            - key: service.name
+              value: service_name
+        tracesToMetrics:
+          datasourceUid: prometheus
+          spanStartTimeShift: "-5m"
+          spanEndTimeShift: "5m"
+          tags:
+            - key: service.name
+              value: service_name
+        serviceMap:
+          datasourceUid: prometheus
+        nodeGraph:
+          enabled: true
+        lokiSearch:
+          datasourceUid: loki
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+
+# ---------------------------------------------------------------------------
+# EKS 에서 닿을 수 없는 컨트롤 플레인 컴포넌트는 끈다 (타깃이 항상 down 으로 남는다).
+# coreDns 는 kube-system 에 Service 를 만들어 AppProject 의 destination(observability) 을 벗어나므로 끈다.
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeEtcd:
+  enabled: false
+kubeProxy:
+  enabled: false
+coreDns:
+  enabled: false
+
+# 아침 점검(스펙 7장 B)용: kube-state-metrics · node-exporter
+kubeStateMetrics:
+  enabled: true
+kube-state-metrics:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 64Mi
+    limits:
+      memory: 128Mi
+nodeExporter:
+  enabled: true
+prometheus-node-exporter:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      memory: 64Mi
+
+# ---------------------------------------------------------------------------
+prometheusOperator:
+  # admission webhook 은 PrometheusRule 검증용이다. 이 작업은 규칙을 만들지 않고, 인증서 생성 Job(Helm hook)을 피한다.
+  admissionWebhooks:
+    enabled: false
+  tls:
+    enabled: false
+  resources:
+    requests:
+      cpu: 20m
+      memory: 100Mi
+    limits:
+      memory: 200Mi
+
+# ---------------------------------------------------------------------------
+prometheus:
+  enabled: true
+  prometheusSpec:
+    retention: 2d  # 스펙 2장. emptyDir 보호용으로 크기 상한도 둔다
+    retentionSize: 4GB
+    # storageSpec 을 비우면 emptyDir (PVC 없음)
+    # Demo Collector 가 OTLP 로 보낸다 (Demo 내장 prometheus 와 같은 방식). Collector 쪽은 endpoint 만 바꿨다.
+    enableOTLPReceiver: true
+    otlp:
+      keepIdentifyingResourceAttributes: true
+      # Demo 차트 0.42.1 의 prometheus.server.otlp.promote_resource_attributes 와 같은 목록
+      # → service_name · k8s_pod_name 등이 라벨이 되어 스펙 9장 쿼리가 그대로 맞는다
+      promoteResourceAttributes:
+        - service.instance.id
+        - service.name
+        - service.namespace
+        - service.version
+        - cloud.availability_zone
+        - cloud.region
+        - deployment.environment.name
+        - k8s.cluster.name
+        - k8s.container.name
+        - k8s.cronjob.name
+        - k8s.daemonset.name
+        - k8s.deployment.name
+        - k8s.job.name
+        - k8s.namespace.name
+        - k8s.node.name
+        - k8s.pod.name
+        - k8s.replicaset.name
+        - k8s.statefulset.name
+        - container.name
+        - host.name
+    enableFeatures:
+      - exemplar-storage
+    tsdb:
+      outOfOrderTimeWindow: 30m  # Demo 내장 prometheus 와 같다. OTLP 로 들어오는 샘플의 순서 뒤바뀜 허용
+    # Loki · Tempo 차트가 만드는 ServiceMonitor(release 라벨이 다르다)도 수집한다 (스펙 7장 C2)
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        memory: 1536Mi

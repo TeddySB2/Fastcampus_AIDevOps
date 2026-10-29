@@ -69,7 +69,7 @@
 
 | 확인 | 기준 (명령과 기대값) |
 | --- | --- |
-| 배포 | `argocd app get <관측 Application 이름>` → Sync `Synced`, Health `Healthy` (이름은 구현 PR 에서 정한다)<br>`kubectl -n observability get pod` → 전부 `Running`, RESTARTS 가 10분간 증가하지 않음<br>`kubectl -n otel-demo-dev get deploy jaeger prometheus grafana opensearch` → 넷 다 `NotFound` (내장 백엔드 꺼짐)<br>`kubectl get pvc -A` → 빈 결과<br>`argocd app get otel-demo-dev` → 여전히 `Synced` · `Healthy`, `tests/smoke.sh` 통과 (Demo 를 깨뜨리지 않았다) |
+| 배포 | `argocd app get kube-prometheus-stack`, `argocd app get loki`, `argocd app get tempo` → 셋 다 Sync `Synced`, Health `Healthy` (AppProject `observability`, `gitops/apps`)<br>`kubectl -n observability get pod` → 전부 `Running`, RESTARTS 가 10분간 증가하지 않음<br>`kubectl -n otel-demo-dev get deploy jaeger prometheus grafana opensearch` → 넷 다 `NotFound` (내장 백엔드 꺼짐)<br>`kubectl get pvc -A` → 빈 결과<br>`argocd app get otel-demo-dev` → 여전히 `Synced` · `Healthy`, `tests/smoke.sh` 통과 (Demo 를 깨뜨리지 않았다) |
 | 신호 (관측된다) | `tests/signals.sh` 통과. load-generator 가 계속 만드는 주문을 쓴다. 각 단계는 port-forward 된 HTTP API 로 확인하고 exit code 로 판정한다:<br>1. **메트릭**: Prometheus 에 checkout `PlaceOrder` 서버 span 의 호출 수(9장 SLI 분모)가 있고 5분 전보다 늘어남<br>2. **트레이스**: Tempo 에서 최근 15분 `service.name=checkout` · span 이름 `PlaceOrder` 로 검색 → 1건 이상. 그 트레이스에 `frontend`, `checkout`, `payment` 서비스의 span 이 모두 들어 있음<br>3. **로그**: 2 에서 얻은 trace_id 로 Loki 를 검색(`checkout` 또는 `payment` 서비스) → 1줄 이상. 같은 trace_id 로 메트릭 → 트레이스 → 로그가 이어짐<br>4. **민감 정보**: 2 의 트레이스 속성과 3 의 로그에 `demo.payment.card_number` 원문(`****-****-****-` 로 시작하지 않는 16자리)이 없음<br>5. **Grafana**: 인증 없이 `GET /api/dashboards/home` → `401`. 로그인 후 "결제 여정" 대시보드가 Git 에서 provisioning 됨(`kubectl -n observability get cm -l grafana_dashboard=1` 에 해당 ConfigMap 존재)<br>6. **파이프라인**: Collector 자체 메트릭에서 exporter 전송 실패가 10분간 0 (7장 C 의 지표) |
 | 기준선 | 신호 확인 뒤 장애 없는 상태에서 30분 이상 측정해 10장에 적는다. 측정값 · 쿼리 · 시간 범위를 함께 남긴다 |
 | 실패 대응 (사람이 주입) | 승인자가 `scenarios/flag.sh paymentFailure <variant>` 실행 →<br>5분 안에 대시보드의 주문 실패율이 오르고, Tempo 에서 `payment` 의 `Charge` span 이 `ERROR` 인 트레이스가 보이고, 그 trace_id 로 payment 로그가 나온다<br>Claude 는 읽기 전용 조회만으로 "payment" 를 원인 서비스로 지목하고 쿼리 · 시간 범위 · 데이터소스를 근거로 붙인다<br>`scenarios/flag.sh paymentFailure off` 뒤 5분 안에 실패율이 기준선으로 돌아오고 `tests/smoke.sh` · `tests/signals.sh` 가 다시 통과<br>관측 스택 자체가 깨지면 revert PR 로 되돌리고 위 "배포" · "신호" 를 다시 통과 |
@@ -99,7 +99,7 @@
 | A1. 지금 주문이 되는가 | 최근 5분 주문 성공률(9장 SLI-1) — Prometheus |
 | A2. 얼마나 느린가 | 최근 5분 주문 p95 (9장 SLI-2), 목표선 1초 — Prometheus |
 | A3. 어디서 깨졌는가 | 8장 호출 경로의 서비스별 ERROR span 비율과 p95 (payment · cart · product-catalog · currency · shipping · email · kafka) — Prometheus(span_metrics). 하나 골라 Tempo 로 이동 |
-| A4. 사용자 탓인가 시스템 탓인가 | frontend `POST /api/checkout` 의 4xx 와 5xx 를 나눠 본다 — Prometheus. 5xx 만 SLI 실패다 |
+| A4. 사용자 탓인가 시스템 탓인가 | frontend `POST /api/checkout` 서버 span 의 ERROR(=5xx) 와 그 외(2xx · 4xx)를 나눠 본다 — Prometheus(span_metrics). 5xx 만 SLI 실패다. **한계**: span_metrics 기본 디멘션에 HTTP 상태 코드가 없고 frontend 의 `http_server_request_duration_seconds` 에는 route 라벨이 없어 4xx 를 2xx 와 가르지 못한다. 가르려면 커넥터에 `http.response.status_code` 디멘션을 더해야 한다(8장 "그대로 유지" 와 충돌 → 별도 승인) |
 | A5. 주문이 끝까지 처리됐는가 | kafka `orders` 토픽 적재(lag)와 accounting · fraud-detection 의 소비 — Prometheus(Collector `kafkametrics` 수신기) |
 | A6. 결제 실패 플래그가 켜져 있나 | `scenarios/flag.sh --list` (사람). flagd 상태는 메트릭으로 안 나오므로 조회 절차에 넣는다 |
 
@@ -116,7 +116,7 @@
 
 | 질문 | 신호 · 데이터소스 |
 | --- | --- |
-| C1. Collector 가 받고 내보내는가 | `otelcol_receiver_accepted_*`, `otelcol_exporter_sent_*`, `otelcol_exporter_send_failed_*`, `otelcol_exporter_queue_size` — Collector 자체 메트릭(가정: 이름은 Collector 버전에 따라 다름) |
+| C1. Collector 가 받고 내보내는가 | `otelcol_exporter_sent_{spans,metric_points,log_records}_total`, `otelcol_exporter_send_failed_{spans,metric_points,log_records}_total`(라벨 `exporter`), `otelcol_exporter_queue_size` — Collector(contrib 0.160.0) 자체 메트릭. 이름은 Demo 내장 Prometheus 에서 확인했다(구현 PR) |
 | C2. Prometheus · Loki · Tempo 가 받고 있는가 | 각 백엔드의 ingest 메트릭과 Prometheus `up` — Prometheus |
 | C3. 마지막 데이터가 언제인가 | A1 분모의 최신 샘플 시각, Tempo 최근 트레이스 시각, Loki 최근 로그 시각 — 각 API |
 
@@ -137,7 +137,9 @@
 ## 8. 결제 여정의 호출 경로와 수집 지점
 
 차트 0.42.1 의 `components.checkout.env`(CART_ADDR · CURRENCY_ADDR · EMAIL_ADDR · PAYMENT_ADDR · PRODUCT_CATALOG_ADDR · SHIPPING_ADDR · KAFKA_ADDR) 와 `components.frontend.env`(CHECKOUT_ADDR) 에서 확인한 경로다.
-span 이름은 가정이며 구현 PR 에서 Tempo 의 실제 트레이스로 확인한다.
+span 이름은 구현 PR 에서 Demo 내장 Prometheus 의 span_metrics(`traces_span_metrics_calls_total` 의 `span_name`)로 확인했다.
+서버 span 이름이 아래 그림과 다른 것: cart `POST /oteldemo.CartService/GetCart` · `POST /oteldemo.CartService/EmptyCart`, shipping `POST /get-quote` · `POST /ship-order`, email `POST /send_order_confirmation`, kafka 적재는 checkout 의 producer span `publish orders`.
+checkout `oteldemo.CheckoutService/PlaceOrder`, payment `oteldemo.PaymentService/Charge`, frontend `POST /api/checkout` 은 그림과 같다.
 
 ```
 사용자 / load-generator (Locust, LOCUST_HOST=http://frontend-proxy:8080)
@@ -165,11 +167,12 @@ span 이름은 가정이며 구현 PR 에서 Tempo 의 실제 트레이스로 �
 | --- | --- | --- | --- |
 | 트레이스 | 각 서비스 SDK → OTLP(4317/4318) | `transform/sanitize_spans` · `transform/redact_sensitive_data` · `redaction` 유지 | Tempo (지금은 jaeger) |
 | 메트릭 (앱) | 각 서비스 SDK → OTLP, Collector `kafkametrics` · `prometheus/ad` 수신기 | 그대로 | Prometheus (지금은 내장 prometheus 의 OTLP 수신) |
-| 메트릭 (span 기반) | Collector `span_metrics` 커넥터가 트레이스에서 생성. 기본 디멘션 service.name · span.name · span.kind · status.code (가정: 기본값) | 그대로 유지. SLI 의 원천 | Prometheus |
+| 메트릭 (span 기반) | Collector `span_metrics` 커넥터가 트레이스에서 생성. 디멘션 service.name · span.name · span.kind · status.code (기본값, 라벨 `service_name` · `span_name` · `span_kind` · `status_code` 로 확인) | 그대로 유지. SLI 의 원천 | Prometheus |
 | 메트릭 (클러스터) | kube-state-metrics · node-exporter · kubelet (kube-prometheus-stack) | — | Prometheus |
 | 로그 | 각 서비스 SDK → OTLP 로그(trace_id · span_id 포함) | `transform/sanitize_logs` 유지 | Loki (지금은 opensearch) |
 
-Collector 의 Prometheus 전송 방식(OTLP 수신 vs remote_write)과 span_metrics 메트릭의 실제 이름(기본 네임스페이스 `traces.span.metrics` → `traces_span_metrics_calls_total` · `traces_span_metrics_duration_milliseconds_bucket` 로 추정)은 **가정**이다. 구현 PR 에서 Prometheus 에 들어온 이름으로 9장 쿼리를 고친다.
+Collector 의 Prometheus 전송 방식은 OTLP 수신(`otlp_http/prometheus` → kube-prometheus-stack Prometheus 의 `enableOTLPReceiver`, Demo 내장 prometheus 와 같은 `promote_resource_attributes` 목록)이다.
+span_metrics 메트릭 이름은 `traces_span_metrics_calls_total` · `traces_span_metrics_duration_milliseconds_bucket`(라벨 `service_name` · `span_name` · `span_kind` · `status_code`)로 Demo 내장 Prometheus 에서 확인했다(구현 PR). 새 Prometheus 도 같은 기본 번역 규칙을 쓰므로 9장 쿼리를 그대로 쓴다.
 
 ## 9. SLI 정의 (목표치를 재는 방법)
 
@@ -180,10 +183,10 @@ Collector 의 Prometheus 전송 방식(OTLP 수신 vs remote_write)과 span_metr
 | SLI-1 주문 가용성 | 분모: `service.name="checkout"`, `span.name="oteldemo.CheckoutService/PlaceOrder"`, `span.kind="SPAN_KIND_SERVER"` 인 span 수<br>분자: 그 중 `status.code != "STATUS_CODE_ERROR"` 인 span 수<br>실패로 보는 것: checkout 이 PlaceOrder 를 ERROR 로 끝낸 모든 경우(payment 거절 · 하위 서비스 불가 · 타임아웃). 사용자 입력 오류로 frontend 가 4xx 를 돌려주고 checkout 까지 오지 않은 요청은 분모에 들어가지 않는다 | 30일 창 99% (dev 보존이 2일이라 30일은 못 잰다. 대시보드는 5분 · 1시간 · 24시간 창을 보이고, 30일은 목표 정의로만 둔다) |
 | SLI-2 주문 지연 | 같은 span 의 duration 히스토그램에서 p95. 성공 · 실패를 가르지 않는다(실패도 사용자가 기다린 시간이다) | p95 1초 미만 (대시보드로만 본다. 알람은 걸지 않는다) |
 
-- 쿼리(가정, 이름은 8장 끝 참고):
+- 쿼리(이름은 8장 끝에서 확인. 대시보드 `gitops/manifests/observability/payment-journey-dashboard.yaml` 과 `tests/signals.sh` 가 이 쿼리를 쓴다):
   - SLI-1 = `1 - sum(rate(traces_span_metrics_calls_total{service_name="checkout", span_name="oteldemo.CheckoutService/PlaceOrder", span_kind="SPAN_KIND_SERVER", status_code="STATUS_CODE_ERROR"}[5m])) / sum(rate(traces_span_metrics_calls_total{service_name="checkout", span_name="oteldemo.CheckoutService/PlaceOrder", span_kind="SPAN_KIND_SERVER"}[5m]))`
   - SLI-2 = `histogram_quantile(0.95, sum by (le) (rate(traces_span_metrics_duration_milliseconds_bucket{service_name="checkout", span_name="oteldemo.CheckoutService/PlaceOrder", span_kind="SPAN_KIND_SERVER"}[5m])))`
-- span_metrics 기본 히스토그램 버킷에 1초 경계가 있는지 구현 PR 에서 확인한다(없으면 커넥터 설정에서 버킷을 넣는다). 1초 경계가 없으면 p95 1초 판정이 부정확하다.
+- span_metrics 기본 히스토그램 버킷에 1초 경계(`le="1000"`)가 있음을 Demo 내장 Prometheus 에서 확인했다(구현 PR). 버킷: 2 · 4 · 6 · 8 · 10 · 50 · 100 · 200 · 400 · 800 · 1000 · 1400 · 2000 · 5000 · 10000 · 15000 ms.
 - 트래픽: load-generator 가 5명(`LOCUST_USERS=5`)으로 주문을 계속 만든다. 분모가 5분에 0 이면 "주문 없음" 으로 표시하고 가용성을 100% 로 그리지 않는다.
 
 ## 10. 기준선 (측정 후 채운다)

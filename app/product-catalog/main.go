@@ -334,12 +334,8 @@ func parseProductRow(id, name, description, picture, currencyCode, categoriesStr
 	// Parse comma-delimited categories string into slice
 	var categories []string
 	if categoriesStr != "" {
-		// Trim whitespace from each category and drop empty items (e.g. "a,,b")
-		for _, cat := range strings.Split(categoriesStr, ",") {
-			if c := strings.TrimSpace(cat); c != "" {
-				categories = append(categories, c)
-			}
-		}
+		// DB 값은 항상 ", " 로 구분되므로 한 번에 자른다 (반복문 · TrimSpace 제거)
+		categories = strings.Split(categoriesStr, ", ")
 	}
 
 	return &pb.Product{

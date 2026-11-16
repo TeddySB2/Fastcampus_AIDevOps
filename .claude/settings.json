@@ -41,7 +41,8 @@
       "Bash(podman save:*)",
       "Bash(trivy image:*)",
       "mcp__argocd",
-      "mcp__eks"
+      "mcp__eks",
+      "mcp__grafana"
     ],
     "ask": [
       "Bash(git push:*)",

@@ -42,6 +42,13 @@ grafana:
       enabled: false
     analytics:
       reporting_enabled: false
+    users:
+      viewers_can_edit: false  # Viewer(Claude 용 서비스 계정)는 Explore 에서도 수정 불가
+    # 쿼리 감사: 어느 서비스 계정이 어떤 데이터소스를 조회했는지 서버 로그에 남긴다 (2-1)
+    log:
+      level: info
+    dataproxy:
+      logging: true
       check_for_updates: false
   testFramework:
     enabled: false

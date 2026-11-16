@@ -130,7 +130,7 @@
 | D4. 노드 · HPA 가 움직였나 | `kube_node_created`, HPA 이벤트, `kubectl get events -n otel-demo-dev --sort-by=.lastTimestamp` |
 
 **Claude 의 조회 규칙**
-- 경로: port-forward 된 Prometheus · Loki · Tempo HTTP API 를 읽기 전용으로 쓴다. Grafana API 토큰 발급 여부는 미정.
+- 경로: Grafana MCP(`.mcp.json`, Viewer 서비스 계정 토큰 · 쓰기 도구 없음)로 조회한다. 토큰은 사람이 `scripts/grafana-sa-token.sh` 로 발급해 셸 환경 변수로만 둔다(파일 · Git 에 남기지 않음). 검증 스크립트(`tests/signals.sh`)는 지금처럼 port-forward 된 HTTP API 를 쓴다.
 - 순서: A1/A2(메트릭) → A3 으로 서비스 좁히기 → Tempo 에서 ERROR span 과 trace_id → 그 trace_id 로 Loki. 항상 C 를 먼저 배제한다(데이터가 없는 것과 장애를 구분).
 - 답 형식: 결론 한 줄 + 근거(쿼리 원문, 시간 범위, 데이터소스, 결과 수치). 근거 없는 추정은 "가정" 이라고 쓴다.
 

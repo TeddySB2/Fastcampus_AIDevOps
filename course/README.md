@@ -80,6 +80,10 @@ Part 3 를 끝낸 저장소(`part3`)에서 그대로 이어 간다. 배포 브�
 
 ```bash
 git fetch https://github.com/TeddySB2/Fastcampus_AIDevOps.git 'refs/tags/p4-*:refs/tags/p4-*'   # Part 4 태그
+# Part 3 에서 이어서 하면: 강사가 원본에 넣은 회의 메모는 내 fork 에 없다 → 이 파일만 가져온다
+git restore --source p4-ch1-start -- docs/requirements/observability.md
+./scripts/init-repo.sh <내계정>     # 메모 안의 승인자 @TeddySB2 → 내 계정
+git add docs/requirements && git commit -m "docs: 관측 요구사항(팀 회의)" && git push origin part3
 brew install uv prometheus yq     # uvx(mcp-grafana 실행), promtool(알람 룰 검사), yq
 # Collector 설정 검사는 podman 으로 otel/opentelemetry-collector-contrib:0.160.0 이미지를 쓴다 (gitops/CLAUDE.md)
 ```
@@ -106,7 +110,7 @@ git switch -C part3 p4-ch1-3-start && git push -f origin part3
 | 2-3 | `p4-ch2-3-start` | 2-2 결과: `/obs-ask` Skill |
 | 3-1 (강의) | — | 실습 없음 |
 | 4-1 | `p4-ch4-start` | 2-3 결과(결제 여정 대시보드, 첫 알람 룰) + `tests/promtool.sh` |
-| 4-2 | `p4-ch4-2-start` | 4-1 결과: SLO 알람 + 단위 테스트, 알람 계약(스펙 6장), 룰 검사 CI(`ci-observability.yml`), Runbook, Alertmanager → Slack. **merge 전에** Slack 웹훅 Secret 을 만든다 (아래) |
+| 4-2 | `p4-ch4-2-start` | 4-1 결과: SLO 알람 + 단위 테스트, 알람 계약(스펙 6장), 룰 검사 CI(`ci-observability.yml`), Alertmanager → Slack. **merge 전에** Slack 웹훅 Secret 을 만든다 (아래) |
 | 5-1 | `p4-ch5-start` | 4-2 결과: EKS 에서 수집할 수 없는 대상 · 룰 정리, warning 묶음 발송 |
 | 5-2 | `p4-ch5-2-start` | 5-1 결과: `.mcp.json` 에 slack, CLAUDE.md Slack 전송 규칙 |
 | 5-3 | `p4-ch5-3-start` | 5-2 결과: `/daily-health` Skill (첫 버전) |
@@ -138,3 +142,47 @@ kubectl -n observability create secret generic alertmanager-slack --from-literal
 | `./scenarios/flag.sh imageSlowLoad 5sec` | 지연 증가 (느린 API 질문) | 2-2 |
 | `./tests/signals.sh` | 세 신호 연결 확인 | 1-3, 5-2 |
 | `./tests/promtool.sh` | 알람 룰 검사 · 단위 테스트 | 2-3, 4-1 |
+
+# Part 5 — 장애 대응을 Claude 와 함께
+
+Part 4 를 끝낸 저장소(`part3`)에서 그대로 이어 간다. 배포 브랜치도 `part3` 그대로다.
+
+## 시작 전에 (한 번)
+
+강사가 원본 저장소에 넣은 회의 메모(`docs/requirements/incident.md`)는 내 fork 에 없다. 1-1 의 첫 요청이 이 파일을 읽으므로 먼저 가져온다.
+
+```bash
+git fetch https://github.com/TeddySB2/Fastcampus_AIDevOps.git 'refs/tags/p5-*:refs/tags/p5-*'   # Part 5 태그
+git switch part3 && git pull origin part3                                   # 내 Part 4 결과
+git restore --source p5-ch1-start -- docs/requirements/incident.md          # 회의 메모만 원본에서
+./scripts/init-repo.sh <내계정>        # 메모 안의 IC · 승인자 @TeddySB2 → 내 계정
+git add docs/requirements && git commit -m "docs: 장애 대응 요구사항(팀 회의)" && git push origin part3
+ls docs/requirements                   # eks-dev.md  incident.md  observability.md
+```
+
+- 클러스터를 지웠다가 다시 만들었다면 Part 4 끝 상태(`observability` 앱 Healthy, `OrderFailureRateHigh` 로드)까지 먼저 확인한다.
+- Grafana MCP 는 Part 4 와 같다: port-forward 를 띄우고 같은 셸에서 토큰을 받은 뒤 `claude` 를 실행한다(아래 "사람이 직접 넣는 값").
+
+## 클립별 시작 상태 (태그)
+
+Part 4 와 같다. 이어서 하면 `git pull origin part3` 만 하고, 중간 클립부터 시작하려면 그 클립의 시작 태그로 내 fork 의 `part3` 를 맞춘다(시작 태그에는 회의 메모가 이미 들어 있다).
+
+```bash
+git switch -C part3 p5-ch1-2-start && git push -f origin part3
+./scripts/init-repo.sh <내계정> && git commit -am "chore: 저장소 주소를 내 fork 로" && git push origin part3
+```
+
+| 클립 | 태그 | 상태 |
+| --- | --- | --- |
+| 1-1 | `p5-ch1-start` | Part 4 완료 상태 + 회의 메모 `docs/requirements/incident.md`. Runbook 없음, 알람에 `runbook_url` 없음 |
+| 1-2 | `p5-ch1-2-start` | 1-1 결과: `docs/runbooks/OrderFailureRateHigh.md`, 알람 `annotations.runbook_url`, CLAUDE.md `## 장애 대응` |
+
+## 장면 재현 (사람이 실행한다. Claude 는 실행하지 않는다)
+
+| 스크립트 | 장면 | 클립 |
+| --- | --- | --- |
+| `./scenarios/flag.sh emailMemoryLeak 10000x` | 함정: email 이 OOMKilled → CrashLoop. **촬영 · 실습 1~2시간 전에** 켠다 | 1-2 |
+| `./scenarios/flag.sh paymentUnreachable on` | 주문 100% 실패 → 약 11분 뒤 `OrderFailureRateHigh`(14.4배) firing. 무엇을 켰는지 Claude 에게 말하지 않는다 | 1-2 |
+| `./scenarios/flag.sh paymentUnreachable off` · `emailMemoryLeak off` | 복구 · 정리 | 1-2 |
+| `./scenarios/flag.sh --list` | 켜진 플래그 확인 (IC 가 직접) | 1-2 |
+

@@ -32,6 +32,7 @@ tests:
               summary: "주문 오류 예산을 14.4배 넘는 속도로 쓰고 있다 (1h 실패율 16.71%, 임계 14.4%)"
               description: "checkout PlaceOrder 서버 span 의 ERROR 비율이 1h · 5m 창 모두 14.4% 를 넘었다. SLO 는 99%(30일), 기준선은 0% (specs/observability.md 9장 · 10장). 원인 조사는 Claude 에게 /obs-ask 로 묻는다(메트릭 → 트레이스 → 로그)."
               dashboard: "Grafana 대시보드 '결제 여정 (dev)' (uid payment-journey)"
+              runbook_url: "https://github.com/TeddySB2/Fastcampus_AIDevOps/blob/part3/docs/runbooks/OrderFailureRateHigh.md"
       - eval_time: 24h46m       # 6배 단계도 firing (2배 단계는 아직: 1d 실패율 1.6%)
         alertname: OrderFailureRateHigh
         exp_alerts:
@@ -40,11 +41,13 @@ tests:
               summary: "주문 오류 예산을 14.4배 넘는 속도로 쓰고 있다 (1h 실패율 38.58%, 임계 14.4%)"
               description: "checkout PlaceOrder 서버 span 의 ERROR 비율이 1h · 5m 창 모두 14.4% 를 넘었다. SLO 는 99%(30일), 기준선은 0% (specs/observability.md 9장 · 10장). 원인 조사는 Claude 에게 /obs-ask 로 묻는다(메트릭 → 트레이스 → 로그)."
               dashboard: "Grafana 대시보드 '결제 여정 (dev)' (uid payment-journey)"
+              runbook_url: "https://github.com/TeddySB2/Fastcampus_AIDevOps/blob/part3/docs/runbooks/OrderFailureRateHigh.md"
           - exp_labels: {service: checkout, slo: order-availability, burn_rate: "6", long_window: 6h, short_window: 30m}
             exp_annotations:
               summary: "주문 오류 예산을 6배 넘는 속도로 쓰고 있다 (6h 실패율 6.39%, 임계 6%)"
               description: "checkout PlaceOrder 서버 span 의 ERROR 비율이 6h · 30m 창 모두 6% 를 넘었다. SLO 는 99%(30일), 기준선은 0% (specs/observability.md 9장 · 10장). 원인 조사는 Claude 에게 /obs-ask 로 묻는다(메트릭 → 트레이스 → 로그)."
               dashboard: "Grafana 대시보드 '결제 여정 (dev)' (uid payment-journey)"
+              runbook_url: "https://github.com/TeddySB2/Fastcampus_AIDevOps/blob/part3/docs/runbooks/OrderFailureRateHigh.md"
 
   # ② 2분만 50% 실패하고 끝난다 → 어느 단계도 울리지 않아야 한다
   #    짧은 창(5m 20% · 30m 3.3%)은 잠깐 넘거나 못 넘지만 긴 창(1h 1.7% · 6h 0.3% · 1d 0.07%)이 임계 아래다
@@ -82,6 +85,7 @@ tests:
               summary: "주문 오류 예산을 2배 넘는 속도로 쓰고 있다 (1d 실패율 2.004%, 임계 2%)"
               description: "checkout PlaceOrder 서버 span 의 ERROR 비율이 1d · 2h 창 모두 2% 를 넘었다. 낮은 실패율이 오래 이어지는 느린 누수다. SLO 는 99%(30일), 기준선은 0% (specs/observability.md 9장 · 10장). 원인 조사는 Claude 에게 /obs-ask 로 묻는다(메트릭 → 트레이스 → 로그)."
               dashboard: "Grafana 대시보드 '결제 여정 (dev)' (uid payment-journey)"
+              runbook_url: "https://github.com/TeddySB2/Fastcampus_AIDevOps/blob/part3/docs/runbooks/OrderFailureRateHigh.md"
 
   # ④ 이력이 10분뿐일 때(Prometheus 재시작 직후, emptyDir) 50% 실패 → 세 단계가 7분 안에 모두 울린다 (알려진 한계)
   #    긴 창에 최근 데이터만 있어 1h · 6h · 1d 실패율이 모두 "최근 몇 분의 실패율" 이 된다. ① 의 20분보다 빠르고 2배 단계까지 같이 울린다
@@ -101,13 +105,16 @@ tests:
               summary: "주문 오류 예산을 14.4배 넘는 속도로 쓰고 있다 (1h 실패율 20.59%, 임계 14.4%)"
               description: "checkout PlaceOrder 서버 span 의 ERROR 비율이 1h · 5m 창 모두 14.4% 를 넘었다. SLO 는 99%(30일), 기준선은 0% (specs/observability.md 9장 · 10장). 원인 조사는 Claude 에게 /obs-ask 로 묻는다(메트릭 → 트레이스 → 로그)."
               dashboard: "Grafana 대시보드 '결제 여정 (dev)' (uid payment-journey)"
+              runbook_url: "https://github.com/TeddySB2/Fastcampus_AIDevOps/blob/part3/docs/runbooks/OrderFailureRateHigh.md"
           - exp_labels: {service: checkout, slo: order-availability, burn_rate: "6", long_window: 6h, short_window: 30m}
             exp_annotations:
               summary: "주문 오류 예산을 6배 넘는 속도로 쓰고 있다 (6h 실패율 20.59%, 임계 6%)"
               description: "checkout PlaceOrder 서버 span 의 ERROR 비율이 6h · 30m 창 모두 6% 를 넘었다. SLO 는 99%(30일), 기준선은 0% (specs/observability.md 9장 · 10장). 원인 조사는 Claude 에게 /obs-ask 로 묻는다(메트릭 → 트레이스 → 로그)."
               dashboard: "Grafana 대시보드 '결제 여정 (dev)' (uid payment-journey)"
+              runbook_url: "https://github.com/TeddySB2/Fastcampus_AIDevOps/blob/part3/docs/runbooks/OrderFailureRateHigh.md"
           - exp_labels: {service: checkout, slo: order-availability, burn_rate: "2", long_window: 1d, short_window: 2h}
             exp_annotations:
               summary: "주문 오류 예산을 2배 넘는 속도로 쓰고 있다 (1d 실패율 20.59%, 임계 2%)"
               description: "checkout PlaceOrder 서버 span 의 ERROR 비율이 1d · 2h 창 모두 2% 를 넘었다. 낮은 실패율이 오래 이어지는 느린 누수다. SLO 는 99%(30일), 기준선은 0% (specs/observability.md 9장 · 10장). 원인 조사는 Claude 에게 /obs-ask 로 묻는다(메트릭 → 트레이스 → 로그)."
               dashboard: "Grafana 대시보드 '결제 여정 (dev)' (uid payment-journey)"
+              runbook_url: "https://github.com/TeddySB2/Fastcampus_AIDevOps/blob/part3/docs/runbooks/OrderFailureRateHigh.md"

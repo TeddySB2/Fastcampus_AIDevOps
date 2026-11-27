@@ -176,6 +176,7 @@ git switch -C part3 p5-ch1-2-start && git push -f origin part3
 | --- | --- | --- |
 | 1-1 | `p5-ch1-start` | Part 4 완료 상태 + 회의 메모 `docs/requirements/incident.md`. Runbook 없음, 알람에 `runbook_url` 없음 |
 | 1-2 | `p5-ch1-2-start` | 1-1 결과: `docs/runbooks/OrderFailureRateHigh.md`, 알람 `annotations.runbook_url`, CLAUDE.md `## 장애 대응` |
+| 2-1 · 2-2 · 2-3 | `p5-ch2-start` | 1-2 끝 상태(1-2 는 저장소를 바꾸지 않는다). 함정 배포는 들어 있지 않다 — 아래 "2장 준비" 로 직접 만든다 |
 
 ## 장면 재현 (사람이 실행한다. Claude 는 실행하지 않는다)
 
@@ -185,4 +186,25 @@ git switch -C part3 p5-ch1-2-start && git push -f origin part3
 | `./scenarios/flag.sh paymentUnreachable on` | 주문 100% 실패 → 약 11분 뒤 `OrderFailureRateHigh`(14.4배) firing. 무엇을 켰는지 Claude 에게 말하지 않는다 | 1-2 |
 | `./scenarios/flag.sh paymentUnreachable off` · `emailMemoryLeak off` | 복구 · 정리 | 1-2 |
 | `./scenarios/flag.sh --list` | 켜진 플래그 확인 (IC 가 직접) | 1-2 |
+
+## 2장 준비 (API 5xx 장애 RCA)
+
+알람 없이 제보로 시작하는 장애다. 장애 10분 전에 무해한 배포 하나(함정)를 넣는다. 켜진 플래그가 하나도 없는 상태에서 시작한다.
+
+```bash
+./scenarios/flag.sh --list | grep -v "default=off"     # 빈 결과여야 한다
+# 함정 배포: product-catalog 메모리 여유 (동작 변경 없음, Pod 만 교체)
+git switch -c ops/product-catalog-memory
+yq -i '.components."product-catalog".envOverrides = [{"name":"GOMEMLIMIT","value":"24MiB"}]' gitops/values/otel-demo/dev.yaml
+yq -i '.components."product-catalog".resources.limits.memory = "48Mi"' gitops/values/otel-demo/dev.yaml
+git commit -am "values(dev): product-catalog 메모리 여유" && git push -u origin HEAD
+gh pr create --base part3 --fill && gh pr merge --merge    # merge 시각을 적어 둔다
+# 약 10분 뒤, 별도 탭에서 (Claude 에게 말하지 않는다)
+./scenarios/flag.sh productCatalogFailure on && date +%T
+```
+
+| 스크립트 | 장면 | 클립 |
+| --- | --- | --- |
+| `./scenarios/flag.sh productCatalogFailure on` | 상품 `OLJCESPC7Z` 하나만 `GetProduct` 에러 → 상품 상세 500 · 그 상품이 담긴 주문 실패. 주문 실패율 알람은 울리지 않을 수 있다 | 2-1 |
+| `./scenarios/flag.sh productCatalogFailure off` | 완화 (IC) | 2-2 |
 

@@ -15,6 +15,13 @@ components:
     imageOverride:
       repository: "067620369479.dkr.ecr.ap-northeast-2.amazonaws.com/ai-devops-lab/product-catalog"
       tag: "c2d002d@sha256:bf7da8799db9921f2a5df2a7449debb2b1b2fff0ba721702ebc31d70f688f50b"
+    # 메모리 여유: 차트 기본은 GOMEMLIMIT 16MiB · limit 32Mi (차트 0.42.1 values.yaml). 동작 변경 없음, 배포 시 Pod 만 교체된다
+    envOverrides:
+      - name: GOMEMLIMIT
+        value: 24MiB
+    resources:
+      limits:
+        memory: 48Mi
 
 # ---------------------------------------------------------------------------
 # 관측 스택 연결 (specs/observability.md 3장 · 8장). Demo 내장 백엔드를 끄고 Collector 의 exporter 만 바꾼다.
